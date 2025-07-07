@@ -137,7 +137,7 @@
   </div>
 
   <script>
-    fetch("http://localhost:8000/")
+    fetch("https://apolo-ia.onrender.com/")
       .then(res => res.json())
       .then(data => {
         document.getElementById("saludo").innerText = data.mensaje;
@@ -171,7 +171,7 @@
     }
 
     function enviarPregunta(texto) {
-      fetch("http://localhost:8000/preguntar", {
+      fetch("https://apolo-ia.onrender.com/preguntar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ texto })
