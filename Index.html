@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Apolo, Oráculo del Conocimiento</title>
+  <link href="https://fonts.googleapis.com/css2?family=Forum&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Forum', serif;
+      background: url('https://upload.wikimedia.org/wikipedia/commons/3/33/Temple_of_Apollo_in_Corinth.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: #f4e9d8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .oraculo {
+      position: relative;
+      background-color: rgba(20, 20, 20, 0.85);
+      border: 8px double #d4af37;
+      border-image: url('https://upload.wikimedia.org/wikipedia/commons/f/f9/Greek_meander_pattern.svg') 30 stretch;
+      border-radius: 20px;
+      padding: 40px 30px;
+      box-shadow: 0 0 40px rgba(255, 215, 0, 0.4);
+      max-width: 600px;
+      width: 100%;
+    }
+
+    .decoracion {
+      width: 70px;
+      height: 70px;
+      background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Laurel_wreath.svg/1024px-Laurel_wreath.svg.png') no-repeat center;
+      background-size: contain;
+      position: absolute;
+    }
+
+    .decoracion.izquierda {
+      top: -40px;
+      left: -40px;
+    }
+
+    .decoracion.derecha {
+      top: -40px;
+      right: -40px;
+      transform: scaleX(-1);
+    }
+
+    .columnas {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 50px;
+      background: url('https://upload.wikimedia.org/wikipedia/commons/7/78/Doric_column.svg') no-repeat center;
+      background-size: contain;
+      opacity: 0.3;
+    }
+
+    .columna-izquierda {
+      left: -60px;
+    }
+
+    .columna-derecha {
+      right: -60px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.4em;
+      color: #d4af37;
+      margin-bottom: 30px;
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      font-size: 1.1em;
+      margin-top: 20px;
+      background: linear-gradient(to right, #d4af37, #f1c40f);
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: linear-gradient(to right, #f1c40f, #d4af37);
+    }
+
+    #pregunta-visual {
+      font-style: italic;
+      margin-top: 10px;
+    }
+
+    #respuesta {
+      background-color: #2c2c2c;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 20px;
+      font-size: 1.1em;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 768px) {
+      .columnas {
+        display: none;
+      }
+
+      .decoracion {
+        width: 50px;
+        height: 50px;
+      }
+
+      .oraculo {
+        padding: 30px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="oraculo">
+    <div class="decoracion izquierda"></div>
+    <div class="decoracion derecha"></div>
+    <div class="columnas columna-izquierda"></div>
+    <div class="columnas columna-derecha"></div>
+
+    <h1>Apolo, Oráculo del Conocimiento</h1>
+    <p id="saludo">Invocando al oráculo...</p>
+
+    <button onclick="iniciarReconocimiento()">Habla tu pregunta</button>
+    <p id="pregunta-visual"></p>
+    <div id="respuesta"></div>
+  </div>
+
+  <script>
+    fetch("http://localhost:8000/")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("saludo").innerText = data.mensaje;
+        speak(data.mensaje);
+      });
+
+    function speak(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "es-ES";
+      speechSynthesis.speak(utterance);
+    }
+
+    function iniciarReconocimiento() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "es-ES";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.start();
+      document.getElementById("pregunta-visual").innerText = "Escuchando...";
+
+      recognition.onresult = function(event) {
+        const texto = event.results[0][0].transcript;
+        document.getElementById("pregunta-visual").innerText = `Tú dijiste: "${texto}"`;
+        enviarPregunta(texto);
+      };
+
+      recognition.onerror = function(event) {
+        document.getElementById("pregunta-visual").innerText = "No pude entenderte. Intenta de nuevo.";
+      };
+    }
+
+    function enviarPregunta(texto) {
+      fetch("http://localhost:8000/preguntar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto })
+      })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("respuesta").innerText = data.respuesta;
+          speak(data.respuesta);
+        });
+    }
+  </script>
+</body>
+</html>
