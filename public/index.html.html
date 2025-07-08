@@ -79,7 +79,7 @@
       width: 100%;
       padding: 15px;
       font-size: 1.1em;
-      margin-top: 20px;
+      margin-top: 10px;
       background: linear-gradient(to right, #d4af37, #f1c40f);
       color: #000;
       border: none;
@@ -131,43 +131,71 @@
     <h1>Apolo, Oráculo del Conocimiento</h1>
     <p id="saludo">Invocando al oráculo...</p>
 
-    <button onclick="iniciarReconocimiento()">Habla tu pregunta</button>
+    <button onclick="iniciarReconocimiento()">🎙️ Habla tu pregunta</button>
+    <button onclick="detenerReconocimiento()">🔇 Detener escucha</button>
+
     <p id="pregunta-visual"></p>
     <div id="respuesta"></div>
   </div>
 
   <script>
+    let recognition;
+    let ultimaFrase = "";
+
     fetch("https://apolo-ia.onrender.com/")
       .then(res => res.json())
       .then(data => {
         document.getElementById("saludo").innerText = data.mensaje;
-        speak(data.mensaje);
+        // Solo habla si el usuario interactuó (móvil lo requiere)
+        if (typeof window.speechSynthesis !== "undefined") {
+          speak(data.mensaje);
+        }
       });
 
     function speak(text) {
+      if (!window.speechSynthesis || !text) return;
+
+      // Prevención para móviles: solo hablar si hay interacción del usuario
+      if (typeof window.userInteracted === "undefined") return;
+
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "es-ES";
-      speechSynthesis.speak(utterance);
+      window.speechSynthesis.speak(utterance);
     }
 
+    // Registrar interacción del usuario (necesario para permitir voz en móviles)
+    document.body.addEventListener("click", () => {
+      window.userInteracted = true;
+    }, { once: true });
+
     function iniciarReconocimiento() {
-      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      if (recognition) recognition.abort();
+
+      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
       recognition.lang = "es-ES";
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
 
+      document.getElementById("pregunta-visual").innerText = "🎤 Escuchando...";
       recognition.start();
-      document.getElementById("pregunta-visual").innerText = "Escuchando...";
 
       recognition.onresult = function(event) {
         const texto = event.results[0][0].transcript;
-        document.getElementById("pregunta-visual").innerText = `Tú dijiste: "${texto}"`;
+        ultimaFrase = texto;
+        document.getElementById("pregunta-visual").innerText = `🗣️ Tú dijiste: "${texto}"`;
         enviarPregunta(texto);
       };
 
       recognition.onerror = function(event) {
-        document.getElementById("pregunta-visual").innerText = "No pude entenderte. Intenta de nuevo.";
+        document.getElementById("pregunta-visual").innerText = "❌ No pude entenderte. Intenta de nuevo.";
       };
+    }
+
+    function detenerReconocimiento() {
+      if (recognition) {
+        recognition.abort();
+        document.getElementById("pregunta-visual").innerText = "🔇 Escucha detenida por el usuario.";
+      }
     }
 
     function enviarPregunta(texto) {
