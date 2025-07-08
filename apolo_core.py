@@ -163,4 +163,7 @@ def generar_respuesta(texto):
     base_de_datos.setdefault('aprendizaje', {})[texto] = respuesta
     guardar_aprendizaje(base_de_datos)
 
-    return respuesta
+    return respuesta 
+
+
+
