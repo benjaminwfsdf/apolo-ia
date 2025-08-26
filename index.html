@@ -7,10 +7,9 @@
   <title>Apolo — Oráculo del Conocimiento</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="../manifest.json">
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0b0b0c">
-  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
-
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Apolo">
@@ -35,13 +34,12 @@
     body{
       margin:0;
       color:var(--ink);
-      background: var(--bg) url("img/temple.jpg") center/cover fixed no-repeat;
+      background: var(--bg) url("https://upload.wikimedia.org/wikipedia/commons/3/33/Temple_of_Apollo_in_Corinth.jpg") center/cover fixed no-repeat;
       font-family:'Forum', serif;
       display:flex; align-items:center; justify-content:center;
       padding:24px;
       position:relative;
     }
-    /* velo para legibilidad */
     body::before{
       content:""; position:fixed; inset:0;
       background:linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.65));
@@ -60,7 +58,6 @@
       overflow:hidden;
     }
 
-    /* friso griego */
     .meander{
       height:22px; opacity:.25; pointer-events:none;
       background:url('https://upload.wikimedia.org/wikipedia/commons/f/f9/Greek_meander_pattern.svg') center/contain repeat-x;
@@ -182,7 +179,7 @@
 
   <script>
     // === Config ===
-    const API_BASE = "https://apolo-ia.onrender.com"; // cambia aquí si usas tu FastAPI local
+    const API_BASE = "https://apolo-ia.onrender.com"; // cambia si usas FastAPI local
     let recognition = null;
     let history = [];
 
@@ -190,7 +187,6 @@
     let userInteracted = false;
     window.addEventListener('click', () => { userInteracted = true; }, { once:true });
 
-    // Utilidades
     const $ = s => document.querySelector(s);
     const show = el => el.hidden = false;
     const hide = el => el.hidden = true;
@@ -246,7 +242,7 @@
     function speak(text){
       if(!$("#ttsOn").checked) return;
       if(!('speechSynthesis' in window)) return;
-      if(!userInteracted) return; // iOS/generales: requiere gesto
+      if(!userInteracted) return; // iOS y móviles: requiere gesto
       if(!text) return;
 
       const u = new SpeechSynthesisUtterance(text);
@@ -292,26 +288,21 @@
     $("#btnDetener").addEventListener('click', stopSTT);
 
     $("#copiar").addEventListener('click', async ()=>{
-      try{ await navigator.clipboard.writeText($("#respuesta").textContent); $("#copiar").textContent="✅ Copiado"; setTimeout(()=>$("#copiar").textContent="📋 Copiar",1200); }catch{}
+      try{
+        await navigator.clipboard.writeText($("#respuesta").textContent);
+        $("#copiar").textContent="✅ Copiado";
+        setTimeout(()=>$("#copiar").textContent="📋 Copiar",1200);
+      }catch{}
     });
     $("#limpiar").addEventListener('click', ()=>{
       $("#texto").value=""; hide($("#panelRespuesta")); hide($("#historial"));
       history = [];
     });
 
-    // Registrar Service Worker (PWA)
+    // Registrar Service Worker (PWA) — raíz
     if('serviceWorker' in navigator){
       window.addEventListener('load', ()=> navigator.serviceWorker.register('service-worker.js'));
     }
   </script>
- <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('../service-worker.js');
-  });
-}
-</script>
-
-
 </body>
 </html>
