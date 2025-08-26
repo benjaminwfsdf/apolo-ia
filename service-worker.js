@@ -1,5 +1,5 @@
 // service-worker.js (raíz)
-const VERSION = 'v1.0.4';
+const VERSION = 'v1.0.5';
 const STATIC  = `static-${VERSION}`;
 
 const ASSETS = [
