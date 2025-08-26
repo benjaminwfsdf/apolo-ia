@@ -166,4 +166,3 @@ def generar_respuesta(texto):
     return respuesta 
 
 
-

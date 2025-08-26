@@ -1,215 +1,315 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Apolo, Oráculo del Conocimiento</title>
-  <link href="https://fonts.googleapis.com/css2?family=Forum&display=swap" rel="stylesheet" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>Apolo — Oráculo del Conocimiento</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="../manifest.json">
+  <meta name="theme-color" content="#0b0b0c">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Apolo">
+
+  <!-- Fuente -->
+  <link href="https://fonts.googleapis.com/css2?family=Forum&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+
   <style>
-    body {
-      margin: 0;
-      font-family: 'Forum', serif;
-      background: url('https://upload.wikimedia.org/wikipedia/commons/3/33/Temple_of_Apollo_in_Corinth.jpg') no-repeat center center fixed;
-      background-size: cover;
-      color: #f4e9d8;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
+    :root{
+      --gold:#d4af37;
+      --gold-2:#f1c40f;
+      --bg:#0b0b0c;
+      --panel:#151515cc;
+      --ink:#f4e9d8;
+      --muted:#cfc6b6;
+      --accent:#caa64a;
+      --radius:18px;
+      --shadow:0 25px 50px rgba(0,0,0,.55);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      color:var(--ink);
+      background: var(--bg) url("img/temple.jpg") center/cover fixed no-repeat;
+      font-family:'Forum', serif;
+      display:flex; align-items:center; justify-content:center;
+      padding:24px;
+      position:relative;
+    }
+    /* velo para legibilidad */
+    body::before{
+      content:""; position:fixed; inset:0;
+      background:linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.65));
+      z-index:-1;
     }
 
-    .oraculo {
-      position: relative;
-      background-color: rgba(20, 20, 20, 0.85);
-      border: 8px double #d4af37;
-      border-image: url('https://upload.wikimedia.org/wikipedia/commons/f/f9/Greek_meander_pattern.svg') 30 stretch;
-      border-radius: 20px;
-      padding: 40px 30px;
-      box-shadow: 0 0 40px rgba(255, 215, 0, 0.4);
-      max-width: 600px;
-      width: 100%;
+    .oracle{
+      width:min(780px, 100%);
+      background:var(--panel);
+      border-radius:var(--radius);
+      border: 2px solid rgba(212,175,55,.35);
+      box-shadow: var(--shadow);
+      padding:28px 22px 20px;
+      backdrop-filter: blur(6px);
+      position:relative;
+      overflow:hidden;
     }
 
-    .decoracion {
-      width: 70px;
-      height: 70px;
-      background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Laurel_wreath.svg/1024px-Laurel_wreath.svg.png') no-repeat center;
-      background-size: contain;
-      position: absolute;
+    /* friso griego */
+    .meander{
+      height:22px; opacity:.25; pointer-events:none;
+      background:url('https://upload.wikimedia.org/wikipedia/commons/f/f9/Greek_meander_pattern.svg') center/contain repeat-x;
+      filter:contrast(0) brightness(2);
+      margin:-8px -22px 14px;
     }
 
-    .decoracion.izquierda {
-      top: -40px;
-      left: -40px;
+    .title{
+      margin:0 0 6px;
+      text-align:center;
+      font-family:"Playfair Display", serif;
+      letter-spacing:.5px;
+      font-size:clamp(26px,4.2vw,36px);
+      color:var(--gold);
+      text-shadow:0 1px 0 #000, 0 0 16px rgba(212,175,55,.35);
+    }
+    .subtitle{
+      text-align:center; margin:0 0 12px; color:var(--muted);
+      letter-spacing:.2px;
     }
 
-    .decoracion.derecha {
-      top: -40px;
-      right: -40px;
-      transform: scaleX(-1);
+    .controls{ display:grid; gap:10px; grid-template-columns: 1fr; margin:12px 0 4px; }
+    .row{ display:flex; gap:10px; align-items:center; }
+    .row > * { flex:1 1 auto; }
+
+    input[type="text"]{
+      width:100%; padding:14px 16px; border-radius:12px; border:1px solid rgba(255,255,255,.12);
+      background:#0e0e10; color:var(--ink); font-size:16px; outline:none;
     }
 
-    .columnas {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 50px;
-      background: url('https://upload.wikimedia.org/wikipedia/commons/7/78/Doric_column.svg') no-repeat center;
-      background-size: contain;
-      opacity: 0.3;
+    .btn{
+      appearance:none; border:1px solid rgba(212,175,55,.45);
+      background:linear-gradient(180deg, #1a1a1a, #101010);
+      color:var(--ink); padding:12px 14px; border-radius:12px;
+      font-weight:700; cursor:pointer; transition:.15s transform, .2s box-shadow, .2s background;
+      text-align:center;
+    }
+    .btn:hover{ box-shadow:0 0 0 2px rgba(212,175,55,.25) inset; }
+    .btn:active{ transform:translateY(1px); }
+    .btn.primary{
+      background:linear-gradient(90deg, var(--gold), var(--gold-2));
+      color:#2a2105; border:0; font-weight:900;
     }
 
-    .columna-izquierda {
-      left: -60px;
+    .toggles{ display:flex; gap:8px; flex-wrap:wrap; }
+    .toggle{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; background:#0f0f10; border:1px solid rgba(255,255,255,.12);
+      border-radius:999px; cursor:pointer; user-select:none;
+    }
+    .toggle input{ accent-color:var(--gold); }
+
+    .status{
+      margin:8px 2px 0; font-size:14px; color:#dfd3bb;
+      display:flex; align-items:center; gap:8px;
+    }
+    .dot{ width:10px; height:10px; border-radius:50%; background:#666; }
+    .dot.live{ background:#27ae60; box-shadow:0 0 0 3px rgba(39,174,96,.2); }
+
+    .answer{
+      margin-top:14px; background:#101011; border:1px solid rgba(255,255,255,.09);
+      border-radius:14px; padding:16px; line-height:1.6; font-size:17px;
+      position:relative;
+    }
+    .answer .tools{
+      position:absolute; top:10px; right:10px; display:flex; gap:6px;
+    }
+    .chip{
+      background:#161616; color:#e9dec9; border:1px solid rgba(255,255,255,.12);
+      border-radius:10px; padding:6px 10px; font-size:13px; cursor:pointer;
     }
 
-    .columna-derecha {
-      right: -60px;
-    }
+    .history{ margin:16px 2px 2px; padding-top:10px; border-top:1px dashed rgba(255,255,255,.15); }
+    .history h3{ margin:0 0 8px; font-size:16px; color:#e7d9bf; }
+    .q{ color:#f1e8d7; margin:6px 0 2px; }
+    .a{ color:#d8cfbf; margin:0 0 8px; opacity:.9; }
 
-    h1 {
-      text-align: center;
-      font-size: 2.4em;
-      color: #d4af37;
-      margin-bottom: 30px;
-    }
-
-    button {
-      width: 100%;
-      padding: 15px;
-      font-size: 1.1em;
-      margin-top: 10px;
-      background: linear-gradient(to right, #d4af37, #f1c40f);
-      color: #000;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: linear-gradient(to right, #f1c40f, #d4af37);
-    }
-
-    #pregunta-visual {
-      font-style: italic;
-      margin-top: 10px;
-    }
-
-    #respuesta {
-      background-color: #2c2c2c;
-      padding: 15px;
-      border-radius: 10px;
-      margin-top: 20px;
-      font-size: 1.1em;
-      line-height: 1.5;
-    }
-
-    @media (max-width: 768px) {
-      .columnas {
-        display: none;
-      }
-
-      .decoracion {
-        width: 50px;
-        height: 50px;
-      }
-
-      .oraculo {
-        padding: 30px 20px;
-      }
+    @media (max-width: 640px){
+      .row{ flex-direction:column; }
     }
   </style>
 </head>
 <body>
-  <div class="oraculo">
-    <div class="decoracion izquierda"></div>
-    <div class="decoracion derecha"></div>
-    <div class="columnas columna-izquierda"></div>
-    <div class="columnas columna-derecha"></div>
+  <main class="oracle">
+    <div class="meander"></div>
+    <h1 class="title">APOΛΛΩN</h1>
+    <p class="subtitle">Oráculo del Conocimiento</p>
 
-    <h1>Apolo, Oráculo del Conocimiento</h1>
-    <p id="saludo">Invocando al oráculo...</p>
+    <div id="saludo" class="status"><span class="dot" id="dot"></span><span>Cargando saludo…</span></div>
 
-    <button onclick="iniciarReconocimiento()">🎙️ Habla tu pregunta</button>
-    <button onclick="detenerReconocimiento()">🔇 Detener escucha</button>
+    <div class="controls">
+      <div class="row">
+        <input id="texto" type="text" placeholder="Escribe tu pregunta al oráculo…" autocomplete="off" />
+        <button id="btnPreguntar" class="btn primary">Preguntar</button>
+      </div>
+      <div class="row">
+        <button id="btnHablar" class="btn">🎙️ Hablar</button>
+        <button id="btnDetener" class="btn">🔇 Detener</button>
+        <div class="toggles">
+          <label class="toggle"><input id="ttsOn" type="checkbox" checked> Voz</label>
+          <label class="toggle"><input id="autoFocus" type="checkbox" checked> Autoseleccionar campo</label>
+        </div>
+      </div>
+    </div>
 
-    <p id="pregunta-visual"></p>
-    <div id="respuesta"></div>
-  </div>
+    <section id="panelRespuesta" class="answer" hidden>
+      <div class="tools">
+        <button id="copiar" class="chip" title="Copiar">📋 Copiar</button>
+        <button id="limpiar" class="chip" title="Limpiar">🧹 Limpiar</button>
+      </div>
+      <div id="respuesta">—</div>
+    </section>
+
+    <section class="history" id="historial" hidden>
+      <h3>Historial</h3>
+      <div id="hist"></div>
+    </section>
+  </main>
 
   <script>
-    let recognition;
-    let ultimaFrase = "";
+    // === Config ===
+    const API_BASE = "https://apolo-ia.onrender.com"; // cambia aquí si usas tu FastAPI local
+    let recognition = null;
+    let history = [];
 
-    fetch("https://apolo-ia.onrender.com/")
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("saludo").innerText = data.mensaje;
-        // Solo habla si el usuario interactuó (móvil lo requiere)
-        if (typeof window.speechSynthesis !== "undefined") {
-          speak(data.mensaje);
-        }
+    // Permiso de voz en móviles tras interacción
+    let userInteracted = false;
+    window.addEventListener('click', () => { userInteracted = true; }, { once:true });
+
+    // Utilidades
+    const $ = s => document.querySelector(s);
+    const show = el => el.hidden = false;
+    const hide = el => el.hidden = true;
+
+    // Saludo inicial
+    fetch(API_BASE + "/")
+      .then(r => r.json()).then(d => {
+        $("#saludo").innerHTML = `<span class="dot live"></span><span>${d.mensaje || "¡Saludos!"}</span>`;
+        speak(d.mensaje);
+      })
+      .catch(_=>{
+        $("#saludo").innerHTML = `<span class="dot"></span><span>Sin conexión al oráculo</span>`;
       });
 
-    function speak(text) {
-      if (!window.speechSynthesis || !text) return;
-
-      // Prevención para móviles: solo hablar si hay interacción del usuario
-      if (typeof window.userInteracted === "undefined") return;
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "es-ES";
-      window.speechSynthesis.speak(utterance);
+    // Envío
+    async function preguntar(texto){
+      if(!texto) return;
+      $("#btnPreguntar").disabled = true;
+      try{
+        const r = await fetch(API_BASE + "/preguntar", {
+          method:"POST",
+          headers:{ "Content-Type": "application/json" },
+          body: JSON.stringify({ texto })
+        });
+        const data = await r.json();
+        const resp = data.respuesta || "No tengo respuesta para eso ahora.";
+        $("#respuesta").textContent = resp;
+        show($("#panelRespuesta"));
+        addToHistory(texto, resp);
+        speak(resp);
+      }catch(e){
+        $("#respuesta").textContent = "❌ No pude consultar al oráculo.";
+        show($("#panelRespuesta"));
+      }finally{
+        $("#btnPreguntar").disabled = false;
+        if($("#autoFocus").checked) $("#texto").select();
+      }
     }
 
-    // Registrar interacción del usuario (necesario para permitir voz en móviles)
-    document.body.addEventListener("click", () => {
-      window.userInteracted = true;
-    }, { once: true });
+    function addToHistory(q, a){
+      history.unshift({q,a});
+      const frag = document.createDocumentFragment();
+      history.slice(0,6).forEach(item=>{
+        const qEl = document.createElement('div'); qEl.className='q'; qEl.textContent="• "+item.q;
+        const aEl = document.createElement('div'); aEl.className='a'; aEl.textContent="↳ "+item.a;
+        frag.appendChild(qEl); frag.appendChild(aEl);
+      });
+      $("#hist").innerHTML = ""; $("#hist").appendChild(frag);
+      show($("#historial"));
+    }
 
-    function iniciarReconocimiento() {
-      if (recognition) recognition.abort();
+    // TTS
+    function speak(text){
+      if(!$("#ttsOn").checked) return;
+      if(!('speechSynthesis' in window)) return;
+      if(!userInteracted) return; // iOS/generales: requiere gesto
+      if(!text) return;
 
-      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "es-ES";
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }
+
+    // STT
+    function startSTT(){
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if(!SR){ alert("Tu navegador no soporta reconocimiento de voz."); return; }
+
+      if(recognition){ recognition.abort(); recognition = null; }
+      recognition = new SR();
       recognition.lang = "es-ES";
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
 
-      document.getElementById("pregunta-visual").innerText = "🎤 Escuchando...";
+      $("#saludo").innerHTML = `<span class="dot live"></span><span>🎤 Escuchando…</span>`;
       recognition.start();
 
-      recognition.onresult = function(event) {
-        const texto = event.results[0][0].transcript;
-        ultimaFrase = texto;
-        document.getElementById("pregunta-visual").innerText = `🗣️ Tú dijiste: "${texto}"`;
-        enviarPregunta(texto);
+      recognition.onresult = e=>{
+        const texto = e.results[0][0].transcript;
+        $("#texto").value = texto;
+        preguntar(texto);
       };
-
-      recognition.onerror = function(event) {
-        document.getElementById("pregunta-visual").innerText = "❌ No pude entenderte. Intenta de nuevo.";
+      recognition.onerror = _=>{
+        $("#saludo").innerHTML = `<span class="dot"></span><span>No te escuché. Intenta de nuevo.</span>`;
+      };
+      recognition.onend = ()=>{
+        $("#saludo").innerHTML = `<span class="dot live"></span><span>Listo</span>`;
       };
     }
+    function stopSTT(){ if(recognition){ recognition.abort(); recognition=null; } }
 
-    function detenerReconocimiento() {
-      if (recognition) {
-        recognition.abort();
-        document.getElementById("pregunta-visual").innerText = "🔇 Escucha detenida por el usuario.";
-      }
-    }
+    // UI events
+    $("#btnPreguntar").addEventListener('click', ()=> preguntar($("#texto").value.trim()));
+    $("#texto").addEventListener('keydown', e=>{
+      if(e.key==="Enter") preguntar($("#texto").value.trim());
+    });
+    $("#btnHablar").addEventListener('click', startSTT);
+    $("#btnDetener").addEventListener('click', stopSTT);
 
-    function enviarPregunta(texto) {
-      fetch("https://apolo-ia.onrender.com/preguntar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto })
-      })
-        .then(res => res.json())
-        .then(data => {
-          document.getElementById("respuesta").innerText = data.respuesta;
-          speak(data.respuesta);
-        });
+    $("#copiar").addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText($("#respuesta").textContent); $("#copiar").textContent="✅ Copiado"; setTimeout(()=>$("#copiar").textContent="📋 Copiar",1200); }catch{}
+    });
+    $("#limpiar").addEventListener('click', ()=>{
+      $("#texto").value=""; hide($("#panelRespuesta")); hide($("#historial"));
+      history = [];
+    });
+
+    // Registrar Service Worker (PWA)
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', ()=> navigator.serviceWorker.register('service-worker.js'));
     }
   </script>
+  <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js');
+  });
+}
+</script>
+
 </body>
 </html>
