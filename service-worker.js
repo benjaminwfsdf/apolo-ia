@@ -1,14 +1,14 @@
 // service-worker.js
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.0.1';
 const STATIC = `static-${VERSION}`;
 
 const ASSETS = [
   './',
-  './index.html',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/apple-touch-icon.png'
+  './index',
+  '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
