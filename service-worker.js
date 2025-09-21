@@ -1,5 +1,5 @@
 // service-worker.js
-const VERSION = 'v1.0.6';
+const VERSION = 'v1.2.6';
 const STATIC = `static-${VERSION}`;
 
 const ASSETS = [
