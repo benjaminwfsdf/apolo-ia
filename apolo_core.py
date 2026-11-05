@@ -127,6 +127,9 @@ def buscar_en_wikipedia(pregunta):
         return None
 
 def consulta_openai(pregunta):
+    # Opt-in explícito: mantener las capacidades anteriores sin cargos por defecto.
+    if os.getenv("APOLO_ENABLE_PAID_AI", "false").lower() != "true":
+        return "No encontré una respuesta gratuita. Prueba la IA local de Apolo 2.0."
     openai.api_key = os.getenv("OPENAI_API_KEY")
     try:
         respuesta = openai.ChatCompletion.create(

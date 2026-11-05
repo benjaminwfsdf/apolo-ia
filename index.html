@@ -7,9 +7,9 @@
   <title>Apolo — Oráculo del Conocimiento</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="%BASE_URL%manifest.json">
   <meta name="theme-color" content="#0b0b0c">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" href="%BASE_URL%icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Apolo">
@@ -135,6 +135,7 @@
     .q{ color:#f1e8d7; margin:6px 0 2px; }
     .a{ color:#d8cfbf; margin:0 0 8px; opacity:.9; }
 
+    .engine-controls{margin-top:12px} .engine-controls select{max-width:100%;color:var(--ink);background:#101010} progress{width:100%;accent-color:var(--gold)} .btn:disabled{opacity:.55;cursor:wait} #respuesta{white-space:pre-wrap;padding-top:24px} body{min-height:100%;height:auto} .status{overflow-wrap:anywhere}
     @media (max-width: 640px){
       .row{ flex-direction:column; }
     }
@@ -163,6 +164,12 @@
       </div>
     </div>
 
+    <div class="engine-controls">
+      <label for="motor">Motor de conversación</label>
+      <select id="motor" class="btn"><option value="local">IA local · WebLLM</option><option value="render">Render · alternativa temporal</option></select>
+      <p id="engineStatus" class="status" role="status" aria-live="polite">Comprobando WebGPU…</p>
+      <progress id="modelProgress" max="1" value="0" hidden aria-label="Descarga e inicialización del modelo"></progress>
+    </div>
     <section id="panelRespuesta" class="answer" hidden>
       <div class="tools">
         <button id="copiar" class="chip" title="Copiar">📋 Copiar</button>
@@ -177,132 +184,6 @@
     </section>
   </main>
 
-  <script>
-    // === Config ===
-    const API_BASE = "https://apolo-ia.onrender.com"; // cambia si usas FastAPI local
-    let recognition = null;
-    let history = [];
-
-    // Permiso de voz en móviles tras interacción
-    let userInteracted = false;
-    window.addEventListener('click', () => { userInteracted = true; }, { once:true });
-
-    const $ = s => document.querySelector(s);
-    const show = el => el.hidden = false;
-    const hide = el => el.hidden = true;
-
-    // Saludo inicial
-    fetch(API_BASE + "/")
-      .then(r => r.json()).then(d => {
-        $("#saludo").innerHTML = `<span class="dot live"></span><span>${d.mensaje || "¡Saludos!"}</span>`;
-        speak(d.mensaje);
-      })
-      .catch(_=>{
-        $("#saludo").innerHTML = `<span class="dot"></span><span>Sin conexión al oráculo</span>`;
-      });
-
-    // Envío
-    async function preguntar(texto){
-      if(!texto) return;
-      $("#btnPreguntar").disabled = true;
-      try{
-        const r = await fetch(API_BASE + "/preguntar", {
-          method:"POST",
-          headers:{ "Content-Type": "application/json" },
-          body: JSON.stringify({ texto })
-        });
-        const data = await r.json();
-        const resp = data.respuesta || "No tengo respuesta para eso ahora.";
-        $("#respuesta").textContent = resp;
-        show($("#panelRespuesta"));
-        addToHistory(texto, resp);
-        speak(resp);
-      }catch(e){
-        $("#respuesta").textContent = "❌ No pude consultar al oráculo.";
-        show($("#panelRespuesta"));
-      }finally{
-        $("#btnPreguntar").disabled = false;
-        if($("#autoFocus").checked) $("#texto").select();
-      }
-    }
-
-    function addToHistory(q, a){
-      history.unshift({q,a});
-      const frag = document.createDocumentFragment();
-      history.slice(0,6).forEach(item=>{
-        const qEl = document.createElement('div'); qEl.className='q'; qEl.textContent="• "+item.q;
-        const aEl = document.createElement('div'); aEl.className='a'; aEl.textContent="↳ "+item.a;
-        frag.appendChild(qEl); frag.appendChild(aEl);
-      });
-      $("#hist").innerHTML = ""; $("#hist").appendChild(frag);
-      show($("#historial"));
-    }
-
-    // TTS
-    function speak(text){
-      if(!$("#ttsOn").checked) return;
-      if(!('speechSynthesis' in window)) return;
-      if(!userInteracted) return; // iOS y móviles: requiere gesto
-      if(!text) return;
-
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "es-ES";
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
-    }
-
-    // STT
-    function startSTT(){
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if(!SR){ alert("Tu navegador no soporta reconocimiento de voz."); return; }
-
-      if(recognition){ recognition.abort(); recognition = null; }
-      recognition = new SR();
-      recognition.lang = "es-ES";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      $("#saludo").innerHTML = `<span class="dot live"></span><span>🎤 Escuchando…</span>`;
-      recognition.start();
-
-      recognition.onresult = e=>{
-        const texto = e.results[0][0].transcript;
-        $("#texto").value = texto;
-        preguntar(texto);
-      };
-      recognition.onerror = _=>{
-        $("#saludo").innerHTML = `<span class="dot"></span><span>No te escuché. Intenta de nuevo.</span>`;
-      };
-      recognition.onend = ()=>{
-        $("#saludo").innerHTML = `<span class="dot live"></span><span>Listo</span>`;
-      };
-    }
-    function stopSTT(){ if(recognition){ recognition.abort(); recognition=null; } }
-
-    // UI events
-    $("#btnPreguntar").addEventListener('click', ()=> preguntar($("#texto").value.trim()));
-    $("#texto").addEventListener('keydown', e=>{
-      if(e.key==="Enter") preguntar($("#texto").value.trim());
-    });
-    $("#btnHablar").addEventListener('click', startSTT);
-    $("#btnDetener").addEventListener('click', stopSTT);
-
-    $("#copiar").addEventListener('click', async ()=>{
-      try{
-        await navigator.clipboard.writeText($("#respuesta").textContent);
-        $("#copiar").textContent="✅ Copiado";
-        setTimeout(()=>$("#copiar").textContent="📋 Copiar",1200);
-      }catch{}
-    });
-    $("#limpiar").addEventListener('click', ()=>{
-      $("#texto").value=""; hide($("#panelRespuesta")); hide($("#historial"));
-      history = [];
-    });
-
-    // Registrar Service Worker (PWA) — raíz
-    if('serviceWorker' in navigator){
-      window.addEventListener('load', ()=> navigator.serviceWorker.register('service-worker.js'));
-    }
-  </script>
+  <script type="module" src="/src/app.js"></script>
 </body>
 </html>
