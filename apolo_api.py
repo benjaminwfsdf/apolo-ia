@@ -1,10 +1,15 @@
 # apolo_api.py
 from fastapi import FastAPI
 from pydantic import BaseModel
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from apolo_core import generar_respuesta, saludo_según_hora
 
 app = FastAPI()
+
+@app.get("/capabilities")
+def capabilities():
+    return {"paid_ai_enabled": os.getenv("APOLO_ENABLE_PAID_AI", "false").lower() == "true"}
 
 # Permitir peticiones desde frontend local
 app.add_middleware(

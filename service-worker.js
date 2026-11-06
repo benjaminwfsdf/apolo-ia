@@ -20,6 +20,8 @@ self.addEventListener('fetch', event => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     if (req.mode === 'navigate') return await cache.match(new URL('./index.html', scope).href) || fetch(req);
-    return await cache.match(req) || fetch(req);
+    // These are public, content-hashed static files. Dev/preview servers may
+    // vary on Origin, while module requests add Origin after precaching.
+    return await cache.match(req, {ignoreVary:true}) || fetch(req);
   })());
 });
