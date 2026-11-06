@@ -36,12 +36,13 @@
       <div id="thinking" class="thinking" role="status" hidden><span class="mini-mark">Λ</span><span class="dots"><i></i><i></i><i></i></span><span id="thinkingText">Apolo está pensando</span></div>
     </main>
     <footer class="composer-area">
-      <div id="download" class="download" hidden><div><span id="downloadText">Preparando modelo…</span><span id="downloadPercent">0%</span></div><progress id="modelProgress" max="1" value="0" aria-label="Descarga e inicialización"></progress><small>La primera carga puede tardar varios minutos. Se guarda en la caché del navegador.</small></div>
+      <div id="download" class="download" hidden><div><span id="downloadText">Preparando modelo…</span><span id="downloadPercent">0%</span></div><progress id="modelProgress" max="1" value="0" aria-label="Descarga e inicialización"></progress><small>Progreso de la fase actual; puede reiniciarse al pasar a inicialización. La primera carga puede tardar varios minutos.</small></div>
       <p id="notice" class="notice" role="status" hidden></p>
       <form id="composer" class="composer">
         <label class="sr-only" for="texto">Mensaje para Apolo</label>
         <textarea id="texto" placeholder="¿Qué tienes en mente?" rows="2" maxlength="2000"></textarea>
         <div class="composer-bottom"><span id="modelBadge" class="model-badge"><span></span>Apolo · Local</span><div class="composer-actions">
+          <button id="cancelResponse" type="button" class="icon-button" aria-label="Cancelar respuesta o carga" title="Cancelar respuesta o carga" hidden>■</button>
           <button id="btnDetener" type="button" class="icon-button" aria-label="Detener voz" title="Detener voz" hidden>■</button>
           <button id="btnHablar" type="button" class="icon-button" aria-label="Hablar con Apolo" title="Hablar"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg></button>
           <button id="btnPreguntar" class="send" type="submit" aria-label="Enviar mensaje" title="Enviar"><svg viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>
@@ -56,12 +57,32 @@
     <p class="help">WebLLM no envía tus mensajes a un servidor. Render se habilita solo si confirma que tiene desactivada la IA de pago; no conserva contexto.</p>
     <label for="model">Modelo local</label><select id="model"><option value="small">Ligero · Qwen 0.5B</option><option value="balanced">Equilibrado · Qwen 1.5B</option><option value="large">Ampliado · Qwen 3B</option></select>
     <p id="modelInfo" class="help"></p><p id="gpuStatus" class="help">Comprobando WebGPU…</p>
+    <p id="mobileWarning" class="help" hidden>En iPhone y equipos de capacidad desconocida comenzamos con 0.5B. Incluso este modelo puede superar los recursos disponibles. Safari puede cerrar la página sin que Apolo pueda capturar el error. No se iniciará ninguna carga automática.</p>
+    <div class="setting-row"><label for="renderConsent">Permitir enviar la pregunta actual a Render</label><input id="renderConsent" type="checkbox"></div>
+    <p class="help">Permiso solo para esta sesión. El historial y los recuerdos no se envían a Render.</p>
     <div class="setting-row"><label for="ttsOn">Leer respuestas en voz alta</label><input id="ttsOn" type="checkbox" checked></div>
     <div class="setting-row"><label for="autoFocus">Volver al campo al responder</label><input id="autoFocus" type="checkbox" checked></div>
     <p class="help">El micrófono y las voces dependen de tu navegador. El reconocimiento de voz puede usar servicios del fabricante.</p>
-    <details><summary>Memoria y opciones avanzadas</summary><label for="rememberedName">Cómo te llamas</label><input id="rememberedName" type="text" maxlength="60" autocomplete="off" placeholder="Aún no me lo has dicho"><p class="help">Se recuerda una declaración directa como «Me llamo Ana». Puedes corregirla o borrarla aquí. Solo dura esta sesión.</p><p id="contextInfo" class="help">Todavía no hay contexto enviado.</p><button id="releaseModel" class="secondary">Liberar modelo de la memoria</button></details>
+    <details><summary>Memoria y opciones avanzadas</summary>
+      <div class="setting-row"><label for="persistMemory">Guardar conversaciones en este navegador</label><input id="persistMemory" type="checkbox"></div>
+      <p id="storageStatus" class="help" role="status">Memoria de sesión: nada se guarda entre recargas.</p>
+      <p class="help">El historial contiene lo dicho, incluso respuestas que pueden ser incorrectas. Los recuerdos son solo datos que tú declaras o confirmas. El modelo recibe un contexto reciente limitado, no todo el historial. La memoria local no se sincroniza entre navegadores ni dispositivos y puede ser eliminada por el navegador.</p>
+      <label for="rememberedName">Nombre declarado</label><input id="rememberedName" type="text" maxlength="60" autocomplete="off" placeholder="Aún no me lo has dicho">
+      <button id="forgetName" class="secondary">Olvidar nombre</button>
+      <label for="memoryNotes">Datos que tú confirmas (opcional)</label><textarea id="memoryNotes" rows="3" maxlength="500" placeholder="Por ejemplo: prefiero explicaciones breves."></textarea>
+      <p class="help">Solo se guardan como recuerdos tus declaraciones y estos campos, nunca lo que invente Apolo. Vacía un campo para borrar ese recuerdo. Borrar recuerdos no elimina menciones en el historial: usa Limpiar si también quieres borrarlas.</p>
+      <p id="contextInfo" class="help">Todavía no hay contexto enviado.</p>
+      <button id="releaseModel" class="secondary">Liberar modelo de la memoria</button>
+      <button id="clearModels" class="secondary">Borrar modelos descargados</button>
+      <p class="help">Borrar modelos libera su caché; conserva conversaciones y recuerdos. Tendrás que descargarlos de nuevo.</p>
+      <button id="exportHistory" class="secondary">Exportar copia local</button>
+      <button id="eraseAll" class="secondary danger">Borrar todos los datos locales de Apolo</button>
+    </details>
   </dialog>
-  <dialog id="historyDialog" aria-labelledby="historyTitle"><div class="dialog-head"><div><p class="eyebrow">ESTA CONVERSACIÓN</p><h2 id="historyTitle">Historial</h2></div><button class="icon-button" data-close="historyDialog" aria-label="Cerrar historial">×</button></div><p class="help">Tus mensajes permanecen aquí mientras esta pestaña esté abierta.</p><div id="historyList"></div><button id="limpiar" class="secondary danger">Limpiar conversación y memoria</button></dialog>
+  <dialog id="historyDialog" aria-labelledby="historyTitle"><div class="dialog-head"><div><p class="eyebrow">ESTA CONVERSACIÓN</p><h2 id="historyTitle">Historial</h2></div><button class="icon-button" data-close="historyDialog" aria-label="Cerrar historial">×</button></div><p class="help">El historial se conserva entre recargas solo si activas la memoria local. No equivale al contexto completo del modelo.</p><div id="historyList"></div><button id="limpiar" class="secondary danger">Limpiar conversación y memoria</button></dialog>
+  <dialog id="storageConsent" aria-labelledby="storageConsentTitle"><h2 id="storageConsentTitle">¿Guardar en este navegador?</h2><p class="help">Se guardarán esta conversación y los recuerdos que tú declares en este dispositivo. No se subirán a un servidor ni se sincronizarán. Cualquier persona que use este perfil del navegador podría verlos. Puedes desactivar y borrar la copia guardada desde Configuración.</p><button id="acceptStorage" class="secondary">Acepto guardar localmente</button><button id="declineStorage" class="secondary">No guardar</button></dialog>
+  <dialog id="loadConsent" aria-labelledby="loadConsentTitle"><h2 id="loadConsentTitle">Preparar IA local</h2><p id="loadConsentText" class="help"></p><label id="researchLicenseRow" class="help" hidden><input id="researchLicense" type="checkbox"> Usaré 3B solo para investigación/evaluación no comercial conforme a su <a href="https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">licencia Qwen Research</a>.</label><button id="acceptLoad" class="secondary">Descargar / iniciar modelo</button><button id="declineLoad" class="secondary">Ahora no</button></dialog>
+  <dialog id="eraseConsent" aria-labelledby="eraseConsentTitle"><h2 id="eraseConsentTitle">Borrar datos locales</h2><p class="help">Se eliminarán conversaciones guardadas, recuerdos, permisos locales y cachés de Apolo/WebLLM en este origen. Será necesario volver a descargar el modelo. No afecta otros dispositivos ni los archivos que hayas exportado.</p><button id="confirmErase" class="secondary danger">Borrar definitivamente</button><button class="secondary" data-close="eraseConsent">Cancelar</button></dialog>
   <script type="module" src="/src/app.js"></script>
 </body>
 </html>

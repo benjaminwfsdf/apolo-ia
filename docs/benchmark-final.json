@@ -1,0 +1,163 @@
+{
+  "date": "2026-11-06T10:38:44.604Z",
+  "environment": {
+    "kind": "physical desktop GPU; Chrome headless",
+    "mobile": false,
+    "adapter": {
+      "vendor": "amd",
+      "architecture": "rdna-1",
+      "maxBufferSize": 2147483648
+    }
+  },
+  "models": [
+    {
+      "model": "Qwen2.5-1.5B-Instruct-q4f32_1-MLC",
+      "catalogVramMB": 1888.97,
+      "tests": [
+        {
+          "id": "name",
+          "question": "¿Cómo me llamo?",
+          "answer": "Tienes razón, Benjamín. ¿Hay algo más en lo que pueda ayudarte?",
+          "elapsedMs": 128508,
+          "generationMs": 13103,
+          "usage": {
+            "completion_tokens": 20,
+            "prompt_tokens": 179,
+            "total_tokens": 199,
+            "extra": {
+              "e2e_latency_s": 13.102,
+              "prefill_tokens_per_s": 14.497801031854719,
+              "decode_tokens_per_s": 25.289498203128705,
+              "time_to_first_token_s": 12.346699999999954,
+              "time_per_output_token_s": 0.03954210526313584
+            }
+          }
+        },
+        {
+          "id": "logic",
+          "question": "Tenía 3 manzanas, regalé 1 y compré 2. ¿Cuántas tengo ahora? Responde con el número y una explicación breve.",
+          "answer": "Tengo 2 manzanas ahora. Primero regalé una que había tenido, luego compré dos más.",
+          "elapsedMs": 897,
+          "generationMs": 897,
+          "usage": {
+            "completion_tokens": 27,
+            "prompt_tokens": 175,
+            "total_tokens": 202,
+            "extra": {
+              "e2e_latency_s": 0.896,
+              "prefill_tokens_per_s": 372.4989357172896,
+              "decode_tokens_per_s": 61.32075471691379,
+              "time_to_first_token_s": 0.46980000000004657,
+              "time_per_output_token_s": 0.016307692307710217
+            }
+          }
+        },
+        {
+          "id": "instruction",
+          "question": "Responde únicamente con la palabra azul, sin comillas ni puntuación.",
+          "answer": "Azul",
+          "elapsedMs": 415,
+          "generationMs": 415,
+          "usage": {
+            "completion_tokens": 3,
+            "prompt_tokens": 157,
+            "total_tokens": 160,
+            "extra": {
+              "e2e_latency_s": 0.415,
+              "prefill_tokens_per_s": 407.15767634844934,
+              "decode_tokens_per_s": 69.20415224880043,
+              "time_to_first_token_s": 0.38560000000009315,
+              "time_per_output_token_s": 0.014450000000069848
+            }
+          }
+        },
+        {
+          "id": "spanish",
+          "question": "Explica en dos frases la diferencia entre una estrella y un planeta.",
+          "answer": "Una estrella es una gran masa de gas y plasma que gira y se expulsa energía. Un planeta, por otro lado, es un cuerpo rocoso o húmido que orbita a una estrella.\n\nEstrellas tienen mucho más masa y radiación que los planetas. Las estrellas están en constante actividad con procesos como la fusionación nuclear que generan luz y calor. Los planetas no son capaces de generar su propio calor ni luz.",
+          "elapsedMs": 1971,
+          "generationMs": 1971,
+          "usage": {
+            "completion_tokens": 101,
+            "prompt_tokens": 155,
+            "total_tokens": 256,
+            "extra": {
+              "e2e_latency_s": 1.971,
+              "prefill_tokens_per_s": 398.5600411417771,
+              "decode_tokens_per_s": 63.637520682245146,
+              "time_to_first_token_s": 0.3888999999999069,
+              "time_per_output_token_s": 0.015713999999987426
+            }
+          }
+        },
+        {
+          "id": "related",
+          "question": "¿Qué ciudad quiero visitar y en qué estación?",
+          "answer": "Estás listo para visitar Valdivia. ¿En qué estación deseas visitarla?",
+          "elapsedMs": 796,
+          "generationMs": 796,
+          "usage": {
+            "completion_tokens": 23,
+            "prompt_tokens": 180,
+            "total_tokens": 203,
+            "extra": {
+              "e2e_latency_s": 0.795,
+              "prefill_tokens_per_s": 384.86209108406655,
+              "decode_tokens_per_s": 67.48466257663893,
+              "time_to_first_token_s": 0.46769999999995343,
+              "time_per_output_token_s": 0.0148181818181924
+            }
+          }
+        },
+        {
+          "id": "uncertainty",
+          "question": "¿Qué desayuné hoy? No te lo he contado.",
+          "answer": "Lo siento, no tengo información sobre lo que has desayunado hoy. No puedo ayudarte con eso.",
+          "elapsedMs": 735,
+          "generationMs": 735,
+          "usage": {
+            "completion_tokens": 25,
+            "prompt_tokens": 153,
+            "total_tokens": 178,
+            "extra": {
+              "e2e_latency_s": 0.735,
+              "prefill_tokens_per_s": 407.7825159915218,
+              "decode_tokens_per_s": 67.05783738480541,
+              "time_to_first_token_s": 0.37519999999995346,
+              "time_per_output_token_s": 0.014912499999986421
+            }
+          }
+        },
+        {
+          "id": "contradiction",
+          "question": "Eso es incorrecto: 7 más 5 es 12. Corrige tu respuesta.",
+          "answer": "Lo siento, 7 más 5 es realmente 12.",
+          "elapsedMs": 759,
+          "generationMs": 759,
+          "usage": {
+            "completion_tokens": 16,
+            "prompt_tokens": 186,
+            "total_tokens": 202,
+            "extra": {
+              "e2e_latency_s": 0.759,
+              "prefill_tokens_per_s": 382.637317424325,
+              "decode_tokens_per_s": 55.370985603610386,
+              "time_to_first_token_s": 0.4861000000000931,
+              "time_per_output_token_s": 0.018059999999978264
+            }
+          }
+        }
+      ],
+      "initializationMs": 115405.30000000005,
+      "cachedInitializationMs": 1943,
+      "cancellation": "AbortError",
+      "afterCancellation": "Listo."
+    },
+    {
+      "model": "Qwen2.5-3B-Instruct-q4f32_1-MLC",
+      "catalogVramMB": 2893.64,
+      "tests": [],
+      "error": "QuotaExceededError: Quota exceeded."
+    }
+  ]
+}

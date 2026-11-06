@@ -1,76 +1,70 @@
 # Apolo IA 2.0
 
-Chat local con WebLLM, interfaz negra y dorada, voz y PWA. Rama de trabajo: `feat/apolo-2-webllm`. Sin NotebookLM ni servicios de inferencia de pago.
+Aplicación existente: interfaz negra y dorada, voz, WebLLM local y PWA. Desarrollo exclusivamente en `feat/apolo-2-webllm`; Preview en el proyecto existente `apolo-ia-2.0`. Sin integración activa con NotebookLM ni nuevas APIs de pago.
 
-## Ejecutar y verificar
+## Desarrollo y pruebas
 
-Node 22+ y npm:
+Node 22+: `npm ci`, `npm test`, `npm run dev`. Compilar: `npm run build`; servir compilación: `npm run preview`.
 
-```sh
-npm ci
-npm test
-npm run dev
-# En otra terminal, opcional:
-npm run build
-npm run preview
-```
+Con Playwright y Chrome instalados:
 
-Usar localhost o HTTPS, no `file://`. La primera pregunta descarga el modelo. Los pesos y el runtime se almacenan en las cachés de WebLLM. Se necesita WebGPU y suficiente memoria gráfica. No basta con que exista `navigator.gpu`.
+- `node tests/browser.cjs`: escritorio y emulación táctil; inferencia y voz simuladas.
+- `node tests/storage-browser.cjs`: IndexedDB real, consentimiento, conflictos, cuota, corrupción y varias pestañas.
+- `node tests/pwa.cjs`: compilación real en puerto 4173, shell offline y conservación de cachés WebLLM.
+- `node tests/benchmark.cjs`: inferencia REAL de 0.5B/1.5B/3B con GPU; descarga varios GB y usa recursos. 3B se prueba solo con fines de evaluación no comercial. No son respuestas simuladas.
 
-Pruebas de navegador con Playwright y Chrome instalados: `node tests/browser.cjs` contra Vite en 5173; `node tests/pwa.cjs` contra la compilación en 4173. Variables opcionales: `PLAYWRIGHT_MODULE` (ruta al módulo), `CHROME_PATH` (ejecutable), `TEST_URL`, `PREVIEW_URL` y `SCREENSHOT_DIR`. Las pruebas UI simulan la inferencia y la voz; la prueba PWA usa el build real. `node tests/gpu.cjs` ejecuta tres consultas reales y descarga 1.5B: requiere GPU y conexión; imprime las respuestas para evaluar su calidad. No son benchmarks comparativos.
+Variables opcionales: `PLAYWRIGHT_MODULE`, `CHROME_PATH`, `TEST_URL` (Vite en 5173), `PREVIEW_URL` (4173), `SCREENSHOT_DIR`, `BENCH_MODELS` (`small,balanced,large`), `BENCH_OUTPUT`. El benchmark es una herramienta de desarrollo, no entra en la aplicación publicada. Ver [validación](docs/VALIDATION.md).
 
-## Qué fallaba con la memoria
+## Memoria y privacidad
 
-La versión anterior mostraba seis turnos, pero enviaba un subconjunto condicionado por un presupuesto de 2800 bytes. El orden de roles era correcto. Al encontrar una respuesta larga, el bucle hacía `break` y descartaba todos los turnos anteriores; el nombre podía seguir visible pero estar ausente del prompt. Después de seis turnos también se borraban del estado los anteriores. Ver un dato en pantalla no garantizaba que el modelo lo recibiera. Render solo recibe la pregunta actual.
+El fallo exacto se debía, entre otros factores, a una extracción demasiado estricta: «Hola Apolo, me llamo Benjamín» no reconocía el nombre. El historial se enviaba en orden, pero ver un dato en pantalla no garantizaba su inclusión en el contexto limitado ni su recuperación por 0.5B.
 
-No tenemos el intercambio exacto del fallo reportado: no se afirma que esta sea su única causa. Incluso con contexto correcto, 0.5B puede fallar siguiendo instrucciones. El prompt y la temperatura anteriores tampoco garantizaban recuperación fiable.
+Ahora se reconocen declaraciones directas con saludos, puntuación y correcciones. Las últimas correcciones explícitas prevalecen. Se rechazan citas, ejemplos y narraciones de terceros reconocibles; no es un extractor universal de lenguaje natural. Las frases ambiguas pueden requerir introducir el nombre en Configuración. Nunca se extraen hechos de respuestas de Apolo.
 
-Ahora:
+Hay tres conceptos diferentes:
 
-- Se conserva el historial completo de la sesión; se construyen pares user/assistant en orden cronológico y se añade la pregunta actual una sola vez.
-- El contexto sigue limitado al modelo de 4096 tokens. Se usa un límite conservador de bytes (no una medida exacta de tokens), se acortan mensajes antiguos, se priorizan turnos recientes y se reservan tokens de salida. Configuración muestra cuántos turnos se enviaron y si hubo recortes. No se promete memoria ilimitada de todo el historial.
-- Una declaración independiente como `Me llamo Ana` o `En realidad me llamo Lucía` conserva el nombre separadamente. No se extraen nombres de las respuestas del asistente. Se puede editar o borrar en Configuración → Memoria. Esta extracción es deliberadamente limitada; una presentación dentro de un párrafo complejo puede no detectarse.
-- El nombre declarado se incluye en cada contexto aunque el turno original quede fuera. Limpiar borra conversación, nombre y estado del modelo. No se usa almacenamiento persistente de conversaciones ni resúmenes inventados.
-- Instrucciones explícitas de no inventar recuerdos, fuentes ni acciones; pedir aclaración cuando falte información. Temperatura 0.2. Esto reduce riesgos, no garantiza verdad.
+1. **Historial visible:** preguntas, respuestas y errores de la sesión; los errores/cancelaciones no se envían como turnos exitosos al modelo.
+2. **Memoria local opcional:** con consentimiento explícito se guardan historial y recuerdos en IndexedDB. Nombre y notas son exclusivamente declaraciones o ediciones del usuario. Se pueden consultar, corregir, eliminar y exportar. Desactivar elimina la copia guardada; mantiene la sesión actual en RAM. Borrar todos los datos elimina también cachés propias y del modelo, sin borrar otras aplicaciones ni archivos exportados.
+3. **Contexto del modelo:** pares cronológicos recientes, pregunta actual una sola vez y datos confirmados en el mensaje del sistema. Presupuesto conservador de 3000 bytes más reserva de salida/plantilla para modelos de 4096 tokens; no es un contador exacto de tokens. Se muestra cuándo hubo recortes. No hay memoria ilimitada.
 
-## Modelos evaluados
+Las preguntas directas sobre el nombre se resuelven desde el dato confirmado, sin depender de inferencia. Esto es recuperación estructurada, no razonamiento simulado. Borrar el nombre impide su recuperación directa; los mensajes históricos que lo mencionan permanecen hasta limpiar el historial. Las notas se guardan solo al escribirlas explícitamente en Configuración.
 
-Los tres identificadores están comprobados mediante pruebas contra `prebuiltAppConfig` de `@mlc-ai/web-llm@0.2.87`. Todos son Qwen2.5 Instruct multilingües y usan `q4f32_1-MLC`, sin exigir `shader-f16`.
+Sin consentimiento no se persisten conversaciones. La caché técnica del modelo es independiente; existe un indicador de operación interrumpida en sessionStorage que no contiene texto personal. Las escrituras son transaccionales, con validación y revisión para evitar sobrescribir cambios de otra pestaña. Ante cuota, corrupción o conflictos se conserva la copia previa y se informa del fallo; exporta la sesión actual antes de recargar. Límite de persistencia: 1000 turnos / 2 MB. El navegador puede eliminar datos por políticas de almacenamiento; no es una copia de seguridad.
 
-| Modelo | VRAM estimada del catálogo | Uso y calidad esperada |
+La memoria es local a cada navegador **y origen**: una nueva URL de Preview puede tener otra memoria/caché. No se sincroniza entre dispositivos. WebLLM descarga pesos/runtime, pero no envía conversaciones al servidor de inferencia. La voz puede usar servicios del fabricante del navegador según sus permisos; no se cambia esa funcionalidad. Render requiere consentimiento independiente para enviar preguntas y confirma antes que la IA de pago esté deshabilitada.
+
+## Modelos y recursos
+
+Identificadores comprobados en `prebuiltAppConfig` de WebLLM 0.2.87, variantes `q4f32_1-MLC` que no requieren shader-f16:
+
+| Modelo | Memoria gráfica estimada del catálogo | Selección y licencia |
 |---|---:|---|
-| 0.5B | 1060.20 MB | Menor consumo; menor capacidad para instrucciones y conversación. Alternativa ligera. |
-| 1.5B | 1888.97 MB | Equilibrio elegido por defecto; más capacidad esperada. Se probó generación real y recuperación del nombre en esta tarea. |
-| 3B | 2893.64 MB | Más capacidad potencial, mayor descarga y latencia; no se midió calidad comparativa en este equipo. Licencia Qwen Research, distinta de Apache 2.0 de 0.5B/1.5B. |
+| Qwen2.5 0.5B Instruct | 1060.20 MB | Móviles, capacidad desconocida o RAM indicada de hasta 4 GB. Apache 2.0. Menor consumo, errores frecuentes en evaluación. |
+| Qwen2.5 1.5B Instruct | 1888.97 MB | Predeterminado en escritorio con capacidad conocida superior. Apache 2.0. Tampoco garantiza respuestas correctas. |
+| Qwen2.5 3B Instruct | 2893.64 MB | Experimental y selección manual. Qwen Research: investigación/evaluación no comercial; uso comercial requiere licencia del titular. Confirmación específica antes de cargar. |
 
-Son estimaciones de memoria, no tamaños de descarga ni garantías. Las variantes f16 del catálogo estiman respectivamente 944.62, 1629.75 y 2504.76 MB; se prefirió f32 para evitar exigir esa extensión de GPU. Un modelo mayor no garantiza respuestas correctas. `navigator.deviceMemory <= 4` sugiere 0.5B; esta señal es RAM aproximada, no VRAM. Si no está disponible, se propone 1.5B. El usuario puede cambiar el modelo antes de descargarlo. Al cambiar o liberar el modelo se termina el worker anterior para evitar mantener dos modelos en memoria.
+Estas cifras no son memoria medida, ni tamaño de descarga, ni garantía de compatibilidad. `deviceMemory` indica RAM aproximada, no VRAM libre. Un modelo mayor no garantiza mejor calidad. Los tres siguen disponibles, pero el primer arranque es conservador. Fuentes: [catálogo](https://github.com/mlc-ai/web-llm/blob/main/src/config.ts), [0.5B](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct), [1.5B](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct), [licencia 3B](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE).
 
-Fuentes: [catálogo WebLLM](https://github.com/mlc-ai/web-llm/blob/main/src/config.ts), [Qwen 1.5B](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct), [Qwen 3B](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct), [WebLLM](https://webllm.mlc.ai/docs/user/get_started.html).
+La primera inferencia requiere aceptar explícitamente la descarga/inicialización. Al recargar no se inicia ningún modelo. Cancelar interrumpe la generación y termina el worker; cambiar/liberar modelo también termina el worker anterior. La caché permanece para reutilización. Se bloquean operaciones simultáneas en la pestaña y no hay reintentos automáticos. Los plazos controlables son 10 minutos para carga y 3 para generación. Otra aplicación/pestaña todavía puede competir por los recursos del dispositivo.
 
-## Interfaz y funciones conservadas
+## Safari / iPhone
 
-Conversación en burbujas, campo multilínea, envío y micrófono. Enter envía en escritorio; Shift+Enter crea una línea. En móviles Enter conserva la escritura multilínea y el botón envía. Historial y engranaje abren diálogos accesibles con Escape y foco del navegador. La animación respeta movimiento reducido. El progreso solo aparece durante carga/inicialización.
+Safari incorporó WebGPU en [Safari 26](https://webkit.org/blog/17333/webkit-features-in-safari-26-0/). Tener WebGPU no demuestra que un modelo pueda cargar con los recursos disponibles. Se comprueba HTTPS y un adaptador real antes de crear el worker.
 
-Cada respuesta permite copiar y escuchar. Se conserva lectura automática opcional; Detener aparece mientras hay voz/micrófono activos. La selección de motor/modelo, la voz, el retorno al campo y la liberación del modelo están en Configuración. Limpiar está en Historial. El retorno al campo no fuerza el teclado en pantallas táctiles. El saludo se sustituyó por una bienvenida estable, sin consultar Render al abrir. No se eliminaron controles útiles; se reubicaron para despejar el chat.
+El cierre observado al 52% no tiene diagnóstico confirmado. El porcentaje puede pertenecer a descarga o inicialización y reiniciarse entre fases. Descarga, caché, compilación, GPU y presión de memoria son hipótesis, no causas demostradas. WebKit documenta [problemas de comandos GPU en iOS](https://bugs.webkit.org/show_bug.cgi?id=311598), pero eso no identifica el fallo de este iPhone. No hay un límite universal de RAM que podamos prometer.
 
-El reconocimiento de voz depende de los permisos y puede usar servicios del fabricante del navegador. Las fuentes externas pueden no cargarse offline, en cuyo caso se usan fuentes locales de respaldo. La conversación se borra al recargar/cerrar la pestaña.
+iPhone/iPad comienzan con 0.5B, muestran advertencias y requieren acción explícita. Ni siquiera 0.5B está garantizado. Un cierre completo del navegador puede impedir que JavaScript capture el error. Al regresar, un marcador técnico puede avisar de una operación interrumpida, pero nunca fuerza recarga/reintento ni promete recuperación. No se dispone de iPhone físico: quedan pendientes Safari real, comparar 0.5B/1.5B, primera carga y caché caliente, varias recargas, voz y ausencia de cierres bajo presión de memoria.
 
-## Render y costo cero
+## Arquitectura, costo y despliegue
 
-La IA local no envía preguntas a Render ni cobra por consulta. Render es manual y no tiene memoria conversacional. Antes de enviar cualquier pregunta, se consulta `/capabilities`; solo se permite el POST si devuelve `paid_ai_enabled: false`. Un backend antiguo, inaccesible o con pago habilitado queda bloqueado con un mensaje claro. Para usar la alternativa, desplegar posteriormente el backend actualizado en Render con `APOLO_ENABLE_PAID_AI=false`. **Esta tarea no modifica ese despliegue.** Las funciones previas de aprendizaje, respuestas temáticas y Wikipedia siguen en el backend.
+`conversation.js`: contexto y política de motor. `memory.js`: declaraciones y consulta estructurada. `storage.js`: persistencia transaccional. `local-engine.js`: worker, ciclo de vida/cancelación. `document-tools.js`: interfaz documental desconectada con consentimiento, respuesta y referencias validadas; sin proveedor, credenciales ni llamadas a NotebookLM.
 
-No se incluyen claves. Nunca poner claves privadas en `VITE_*`. El objetivo $0 también requiere permanecer dentro de los límites del plan de alojamiento; no se contrataron servicios ni activaron opciones de pago.
+Render permanece alternativo y manual. Sin consentimiento no se consulta. Incluso con consentimiento, no se envía una pregunta si `/capabilities` no devuelve `paid_ai_enabled: false`. Backend antiguo/inaccesible queda bloqueado. No se modifica el despliegue Render. No incluir claves privadas en el frontend ni en variables `VITE_*`.
 
-## Vercel Preview y PWA
+El objetivo es $0 sin cobro por consulta usando el hardware del usuario, independientemente del computador de desarrollo. Eso no garantiza capacidad ilimitada del alojamiento, red, almacenamiento o servicios de voz. No se contratan servicios ni se habilitan APIs comerciales.
 
-Proyecto elegido: `apolo-ia-2.0`. Vite, `npm ci`, salida `dist`. `vercel.json` desactiva el autodespliegue **solo para esta rama** porque hay varios proyectos Vercel conectados al mismo repositorio. Crear la Preview explícitamente en el proyecto elegido; no promover ni cambiar alias de producción. Además el guard de build rechaza producción cuando la referencia es esta rama. `main` no se modifica.
+Vercel: Vite, `npm ci`, salida `dist`. Se conserva el bloqueo de despliegue automático de esta rama para evitar publicar en otros proyectos conectados. Crear Preview explícita por SHA en `apolo-ia-2.0`, sin promover, tocar main ni modificar dominios. El guard de build rechaza producción para esta rama.
 
-El service worker precarga los archivos compilados con una versión basada en contenido. Espera al cierre de pestañas antiguas para activar la actualización, borra solo cachés propias/legacy conocidas y conserva las de WebLLM. Se corrigió la coincidencia de recursos estáticos con cabecera `Vary: Origin` para que scripts y CSS funcionen offline. El backend y sus datos no forman parte de `dist`.
+La PWA versiona el shell compilado por contenido, espera al cierre de pestañas viejas para activar y solo limpia cachés propias/legacy conocidas. No intercepta ni precarga pesos del modelo. El borrado completo voluntario sí elimina cachés WebLLM. El shell offline no equivale a inferencia offline garantizada: también deben estar disponibles todos los pesos y el runtime. Fuentes externas usan respaldo local cuando no hay conexión.
 
-## Validación realizada
-
-- 13 pruebas unitarias/integración: catálogo, recomendaciones, roles/orden, nombre, respuesta larga, más de seis turnos, corrección/borrado, límite multibyte, WebGPU, forwarding exacto a `chat.completions.create`, cambio de modelo, reintento/concurrencia, bloqueo de pago en Render y protección de despliegues de esta rama. Sintaxis Python y guard de IA de pago verificados separadamente.
-- Chrome automatizado en escritorio 1440×1000 y emulación táctil 390×844: flujo de chat con inferencia simulada, contexto enviado, progreso, modelos, memoria, historial, limpieza, errores y voz simulada; sin desbordamiento horizontal ni errores JS.
-- Build de producción y prueba PWA real: shell offline, configuración, manifiesto/iconos y conservación de cachés del modelo. Las fuentes de Google fallan offline de forma esperada y se sustituyen por fuentes locales.
-- **Inferencia real en Chrome headless sobre GPU AMD RDNA-1:** Qwen 1.5B descargó aproximadamente 829 MB. `Me llamo Ana` → saludo con Ana; `¿Cómo me llamo?` → `Te llamas Ana.`; consulta sin nombre → petición de información, sin inventar un nombre. Carga y tres consultas: aproximadamente 102 s. No es un benchmark comparativo de calidad y la primera carga depende de red/hardware.
-- Pendiente: generación en teléfonos físicos, micrófono/altavoces físicos, comparación empírica 0.5B/3B y casos de conversación extensos. La emulación móvil no verifica una GPU móvil ni Safari/iOS.
+Si WebLLM informa falta de cuota, Configuración → Borrar modelos descargados elimina solo cachés WebLLM, conservando conversaciones y recuerdos. Es independiente de liberar RAM y de borrar todos los datos. El navegador decide la cuota disponible; dejar espacio en disco no garantiza que conceda más cuota al origen.

@@ -1,0 +1,155 @@
+{
+  "date": "2026-11-06T10:22:01.087Z",
+  "environment": {
+    "kind": "physical desktop GPU; Chrome headless",
+    "mobile": false,
+    "adapter": {
+      "vendor": "amd",
+      "architecture": "rdna-1",
+      "maxBufferSize": 2147483648
+    }
+  },
+  "models": [
+    {
+      "model": "Qwen2.5-1.5B-Instruct-q4f32_1-MLC",
+      "catalogVramMB": 1888.97,
+      "tests": [
+        {
+          "id": "name",
+          "question": "¿Cómo me llamo?",
+          "answer": "Tienes permiso para usar tu nombre de marca Benjamín.",
+          "elapsedMs": 106039,
+          "generationMs": 14282,
+          "usage": {
+            "completion_tokens": 15,
+            "prompt_tokens": 263,
+            "total_tokens": 278,
+            "extra": {
+              "e2e_latency_s": 14.281,
+              "prefill_tokens_per_s": 19.3349654102616,
+              "decode_tokens_per_s": 20.743813898358177,
+              "time_to_first_token_s": 13.60229999999993,
+              "time_per_output_token_s": 0.0482071428571362
+            }
+          }
+        },
+        {
+          "id": "logic",
+          "question": "Tenía 3 manzanas, regalé 1 y compré 2. ¿Cuántas tengo ahora? Responde con el número y una explicación breve.",
+          "answer": "Tienes 4 manzanas ahora. Llevaste las dos que compré y regalaste una, lo que te dejó con cuatro manzanas en total.",
+          "elapsedMs": 1437,
+          "generationMs": 1437,
+          "usage": {
+            "completion_tokens": 37,
+            "prompt_tokens": 260,
+            "total_tokens": 297,
+            "extra": {
+              "e2e_latency_s": 1.437,
+              "prefill_tokens_per_s": 317.1505245182022,
+              "decode_tokens_per_s": 58.670143415897215,
+              "time_to_first_token_s": 0.8197999999999301,
+              "time_per_output_token_s": 0.017044444444447034
+            }
+          }
+        },
+        {
+          "id": "instruction",
+          "question": "Responde únicamente con la palabra azul, sin comillas ni puntuación.",
+          "answer": "azul",
+          "elapsedMs": 658,
+          "generationMs": 658,
+          "usage": {
+            "completion_tokens": 3,
+            "prompt_tokens": 242,
+            "total_tokens": 245,
+            "extra": {
+              "e2e_latency_s": 0.657,
+              "prefill_tokens_per_s": 389.2552678140874,
+              "decode_tokens_per_s": 56.33802816901408,
+              "time_to_first_token_s": 0.6216999999999534,
+              "time_per_output_token_s": 0.017750000000000002
+            }
+          }
+        },
+        {
+          "id": "spanish",
+          "question": "Explica en dos frases la diferencia entre una estrella y un planeta.",
+          "answer": "Una estrella es una gran masa de gas y plasma que gira alrededor de sí misma, mientras que un planeta es un cuerpo rocoso con cráteres, valles y montañas.",
+          "elapsedMs": 1396,
+          "generationMs": 1396,
+          "usage": {
+            "completion_tokens": 46,
+            "prompt_tokens": 240,
+            "total_tokens": 286,
+            "extra": {
+              "e2e_latency_s": 1.397,
+              "prefill_tokens_per_s": 382.2264691829767,
+              "decode_tokens_per_s": 58.931377684662436,
+              "time_to_first_token_s": 0.6279000000000233,
+              "time_per_output_token_s": 0.016968888888885782
+            }
+          }
+        },
+        {
+          "id": "related",
+          "question": "¿Qué ciudad quiero visitar y en qué estación?",
+          "answer": "Estás preguntando sobre Valdivia. ¿En qué estación deseas visitarla?",
+          "elapsedMs": 1202,
+          "generationMs": 1202,
+          "usage": {
+            "completion_tokens": 22,
+            "prompt_tokens": 265,
+            "total_tokens": 287,
+            "extra": {
+              "e2e_latency_s": 1.201,
+              "prefill_tokens_per_s": 312.1686888914981,
+              "decode_tokens_per_s": 59.91440798854793,
+              "time_to_first_token_s": 0.8489000000000233,
+              "time_per_output_token_s": 0.016690476190487278
+            }
+          }
+        },
+        {
+          "id": "uncertainty",
+          "question": "¿Qué desayuné hoy? No te lo he contado.",
+          "answer": "No tengo información sobre lo que has desayunado hoy. Te recomiendo preguntar a alguien cercano para obtener esa información.",
+          "elapsedMs": 1090,
+          "generationMs": 1090,
+          "usage": {
+            "completion_tokens": 29,
+            "prompt_tokens": 238,
+            "total_tokens": 267,
+            "extra": {
+              "e2e_latency_s": 1.089,
+              "prefill_tokens_per_s": 386.7403314917712,
+              "decode_tokens_per_s": 59.397539244785115,
+              "time_to_first_token_s": 0.6153999999999069,
+              "time_per_output_token_s": 0.016835714285719276
+            }
+          }
+        },
+        {
+          "id": "contradiction",
+          "question": "Eso es incorrecto: 7 más 5 es 12. Corrige tu respuesta.",
+          "answer": "Mis disculpas, 7 más 5 es realmente 12.",
+          "elapsedMs": 1138,
+          "generationMs": 1138,
+          "usage": {
+            "completion_tokens": 17,
+            "prompt_tokens": 271,
+            "total_tokens": 288,
+            "extra": {
+              "e2e_latency_s": 1.138,
+              "prefill_tokens_per_s": 308.76153583230536,
+              "decode_tokens_per_s": 61.84770003861029,
+              "time_to_first_token_s": 0.8776999999999534,
+              "time_per_output_token_s": 0.01616875000001164
+            }
+          }
+        }
+      ],
+      "initializationMs": 91756.79999999993,
+      "cachedInitializationMs": 2046
+    }
+  ]
+}

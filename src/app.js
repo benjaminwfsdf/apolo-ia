@@ -1,8 +1,21 @@
-import { MODELS, recommendedModel, checkWebGPU, askRender, buildContext, declaredName } from './conversation.js';
+import { MODELS, recommendedModel, checkWebGPU, askRender, buildContext } from './conversation.js';
+import { emptyMemory, updateMemory, recallConfirmed } from './memory.js';
+import { createMemoryStore, CONSENT_KEY, clearModelCaches } from './storage.js';
 const $ = selector => document.querySelector(selector);
-let history = [], rememberedName = '', busy = false, recognition = null, localModule;
+let history = [], memory=emptyMemory(), busy = false, recognition = null, localModule;
+let persistent=false, store, activeAbort, approvedModel=null, restoring=true;
+const RUN_KEY='apolo-active-model-operation';
+function markRun(value){try{value?sessionStorage.setItem(RUN_KEY,value):sessionStorage.removeItem(RUN_KEY);}catch{}}
+function snapshot(){return {schema:1,history,memory};}
+function syncMemoryFields(){$('#rememberedName').value=memory.name;$('#memoryNotes').value=memory.notes;}
+async function persist(){
+  if(!persistent)return;
+  try{await store.save(snapshot());$('#storageStatus').textContent='Guardado localmente. No se sincroniza con otros dispositivos.';}
+  catch(e){persistent=false;$('#persistMemory').checked=false;$('#storageStatus').textContent='No se pudo guardar: '+e.message+' La copia anterior no se sobrescribió. Exporta la sesión actual antes de recargar.';}
+}
 const modelSelect = $('#model');
 modelSelect.value = recommendedModel();
+$('#mobileWarning').hidden=modelSelect.value!=='small';
 function notice(text='') { $('#notice').textContent=text; $('#notice').hidden=!text; }
 function scrollToLatest() { $('#thinking').scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}); }
 function describeModel() {
@@ -11,13 +24,14 @@ function describeModel() {
   $('#modelBadge').lastChild.textContent=$('#motor').value==='local'?`Apolo · ${m.label}`:'Apolo · Render';
 }
 describeModel();
-modelSelect.addEventListener('change',()=>{localModule?.disposeLocal();describeModel();});
-$('#motor').addEventListener('change',()=>{localModule?.disposeLocal();describeModel();});
+modelSelect.addEventListener('change',()=>{localModule?.disposeLocal();approvedModel=null;describeModel();});
+$('#motor').addEventListener('change',()=>{localModule?.disposeLocal();approvedModel=null;describeModel();});
 checkWebGPU().then(()=>$('#gpuStatus').textContent='WebGPU disponible. La capacidad real depende de la memoria libre de tu GPU.').catch(e=>{ $('#gpuStatus').textContent=e.message; notice(e.message); });
 function setBusy(value) {
   busy=value;
-  for(const selector of ['#btnPreguntar','#btnHablar','#motor','#model','#limpiar','#rememberedName','#releaseModel']) $(selector).disabled=value;
+  for(const selector of ['#btnPreguntar','#btnHablar','#motor','#model','#limpiar','#rememberedName','#memoryNotes','#forgetName','#releaseModel','#clearModels','#persistMemory','#eraseAll','#renderConsent']) $(selector).disabled=value;
   $('#thinking').hidden=!value;
+  $('#cancelResponse').hidden=!value;
   $('#composer').setAttribute('aria-busy',String(value));
 }
 function stopVoice() {
@@ -61,44 +75,62 @@ function renderHistory() {
   });
 }
 async function preguntar(texto) {
-  texto=texto.trim();if(!texto||busy)return;
+  texto=texto.trim();if(!texto||busy||restoring)return;
+  if($('#motor').value==='render'&&!$('#renderConsent').checked){notice('Antes de enviar una pregunta a Render, autoriza el envío en Configuración.');return;}
   let context;
-  const nextName=declaredName(texto) || rememberedName;
-  try { context=buildContext(history,texto,nextName); }catch(e){notice(e.message);return;}
+  const nextMemory=updateMemory(memory,texto);
+  const recalled=$('#motor').value==='local'?recallConfirmed(texto,nextMemory):null;
+  try { context=buildContext(history,texto,nextMemory); }catch(e){notice(e.message);return;}
   stopVoice();notice();setBusy(true);
+  activeAbort=new AbortController();
+  if($('#motor').value==='local' && recalled===null && approvedModel!==modelSelect.value){
+    const allowed=await requestModelLoad(activeAbort.signal);
+    if(!allowed || activeAbort.signal.aborted){setBusy(false);activeAbort=null;return;}
+    approvedModel=modelSelect.value;
+  }
   const id=`turn-${history.length}-${Date.now()}`;
   addMessage('user',texto,{id});$('#texto').value='';$('#texto').style.height='auto';
-  rememberedName=nextName;$('#rememberedName').value=rememberedName;
-  $('#contextInfo').textContent=`Última consulta: ${context.includedTurns} turnos enviados, ${context.omittedTurns} fuera de contexto.${context.shortened?' Algunos mensajes se acortaron.':''} ${rememberedName?'Nombre declarado conservado.':''}`;
+  memory=nextMemory;syncMemoryFields();
+  const turn={q:texto,a:'',id,status:'pending',source:recalled!==null?'memory':$('#motor').value};
+  history.push(turn);persist();
+  $('#contextInfo').textContent=`Última consulta: ${context.includedTurns} turnos incluidos, ${context.omittedTurns} fuera de contexto.${context.shortened?' Algunos mensajes se acortaron.':''} ${memory.name?'Nombre declarado conservado.':''}`;
   scrollToLatest();
   try {
     let answer;
-    if($('#motor').value==='render') {
+    if(recalled!==null){answer=recalled;$('#contextInfo').textContent='Consulta directa resuelta desde tus datos confirmados, sin inferencia ni envío externo.';}
+    else if($('#motor').value==='render') {
       $('#thinkingText').textContent='Consultando Render';
-      answer=await askRender(texto);
+      answer=await askRender(texto,fetch,activeAbort.signal);
       $('#contextInfo').textContent='Render recibe solo la pregunta actual. No tiene memoria conversacional.';
     } else {
       $('#thinkingText').textContent='Preparando Apolo';
+      markRun('loading:'+modelSelect.value);
       localModule ||= await import('./local-engine.js');
+      if(activeAbort.signal.aborted)throw new DOMException('Respuesta cancelada.','AbortError');
       answer=await localModule.localAnswer(context.messages,modelSelect.value,report=>{
         $('#download').hidden=false;
         const fraction=Math.max(0,Math.min(1,Number(report.progress)||0));
         $('#modelProgress').value=fraction;
         $('#downloadPercent').textContent=`${Math.round(fraction*100)}%`;
-        $('#downloadText').textContent='Descargando e iniciando '+MODELS[modelSelect.value].label;
+        const phase=/Loading model from cache|Loading GPU|compil|Finish loading/i.test(report.text||'')?'Inicializando':/fetch|download/i.test(report.text||'')?'Descargando / verificando caché':'Preparando';
+        markRun(phase+':'+modelSelect.value);
+        $('#downloadText').textContent=phase+' · '+MODELS[modelSelect.value].label;
         $('#downloadText').title=report.text||'';
-      },()=>{$('#download').hidden=true;$('#thinkingText').textContent='Apolo está pensando';});
+      },()=>{markRun('generating:'+modelSelect.value);$('#download').hidden=true;$('#thinkingText').textContent='Apolo está pensando';},activeAbort.signal);
     }
     addMessage('assistant',answer);
-    history.push({q:texto,a:answer,id});
+    turn.a=answer;turn.status='complete';await persist();
     renderHistory();speak(answer);
     if(context.omittedTurns>0 || context.shortened)notice('La conversación completa está en el historial. El modelo utiliza un contexto reciente limitado y tu nombre declarado.');
   }catch(e){
-    addMessage('assistant',e.message,{error:true});
-    notice($('#motor').value==='local'?'Puedes reintentar o elegir el modelo ligero en Configuración.':'No se pudo consultar Render. La IA local sigue disponible.');
+    approvedModel=null;
+    if(/quota/i.test(e.message||''))e=new Error('No hay cuota suficiente para guardar el modelo. En Configuración puedes borrar solo los modelos descargados, conservando conversaciones y recuerdos.');
+    turn.status=e.name==='AbortError'?'cancelled':'error';turn.a=e.name==='AbortError'?'Operación cancelada.':e.message;
+    addMessage('assistant',turn.a,{error:true});await persist();renderHistory();
+    notice(e.name==='AbortError'?'Cancelado. No se reintentará automáticamente.':$('#motor').value==='local'?'Puedes reintentar manualmente o elegir el modelo ligero en Configuración.':'No se pudo consultar Render. La IA local sigue disponible.');
     $('#texto').value=texto;
   }finally{
-    $('#download').hidden=true;setBusy(false);
+    markRun(null);activeAbort=null;$('#download').hidden=true;setBusy(false);
     $('#messages').lastElementChild?.scrollIntoView({block:'nearest'});
     if($('#autoFocus').checked && !matchMedia('(pointer: coarse)').matches)$('#texto').focus({preventScroll:true});
   }
@@ -110,11 +142,19 @@ document.querySelectorAll('[data-prompt]').forEach(button=>button.addEventListen
 $('#openSettings').addEventListener('click',()=>$('#settings').showModal());
 $('#openHistory').addEventListener('click',()=>{renderHistory();$('#historyDialog').showModal();});
 document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.close).close()));
-$('#rememberedName').addEventListener('input',()=>rememberedName=$('#rememberedName').value.trim());
-$('#releaseModel').addEventListener('click',()=>{localModule?.disposeLocal();$('#gpuStatus').textContent='Modelo liberado de la memoria. Se cargará al volver a preguntar; su caché se conserva.';});
+$('#rememberedName').addEventListener('input',()=>{memory={...memory,name:$('#rememberedName').value.trim(),source:'user'};persist();});
+$('#memoryNotes').addEventListener('input',()=>{memory={...memory,notes:$('#memoryNotes').value.trim(),source:'user'};persist();});
+$('#forgetName').addEventListener('click',()=>{memory={...memory,name:''};syncMemoryFields();persist();});
+$('#releaseModel').addEventListener('click',()=>{localModule?.disposeLocal();approvedModel=null;markRun(null);$('#gpuStatus').textContent='Modelo liberado de la memoria. Se cargará al volver a preguntar; su caché se conserva.';});
+$('#clearModels').addEventListener('click',async()=>{
+  setBusy(true);$('#thinking').hidden=true;$('#cancelResponse').hidden=true;localModule?.disposeLocal();approvedModel=null;markRun(null);
+  try{await clearModelCaches();$('#gpuStatus').textContent='Modelos descargados borrados. Tus conversaciones y recuerdos se conservan.';}
+  catch(e){$('#gpuStatus').textContent='No se completó el borrado de modelos: '+e.message;}
+  finally{setBusy(false);}
+});
 $('#limpiar').addEventListener('click',()=>{
   if(busy)return;
-  history=[];rememberedName='';$('#rememberedName').value='';localModule?.disposeLocal();stopVoice();
+  history=[];memory=emptyMemory();syncMemoryFields();localModule?.disposeLocal();approvedModel=null;stopVoice();persist();
   $('#messages').replaceChildren();$('#welcome').hidden=false;$('#texto').value='';notice();renderHistory();
   $('#contextInfo').textContent='Conversación y memoria borradas.';$('#historyDialog').close();
 });
@@ -130,4 +170,74 @@ $('#btnHablar').addEventListener('click',()=>{
   current.onend=()=>{if(recognition===current){recognition=null;$('#btnHablar').setAttribute('aria-pressed','false');if(!window.speechSynthesis?.speaking)$('#btnDetener').hidden=true;}};
   try {current.start();$('#btnDetener').hidden=false;$('#btnHablar').setAttribute('aria-pressed','true');notice('Escuchando…');}catch{recognition=null;notice('No se pudo iniciar el micrófono.');}
 });
+function requestModelLoad(signal){
+  $('#loadConsentText').textContent=`${MODELS[modelSelect.value].label}: ${MODELS[modelSelect.value].memory} estimada, además de memoria temporal de descarga y compilación. Se descargarán los archivos que falten en la caché, sin enviar tu conversación. En móviles puede cerrarse la página por falta de recursos; ni 0.5B está garantizado. No habrá reintentos automáticos.`;
+  $('#researchLicenseRow').hidden=modelSelect.value!=='large';$('#researchLicense').checked=false;$('#acceptLoad').disabled=modelSelect.value==='large';
+  return new Promise(resolve=>{
+    const dialog=$('#loadConsent');dialog.returnValue='';
+    const abort=()=>dialog.close('cancel');
+    dialog.addEventListener('close',()=>{signal.removeEventListener('abort',abort);resolve(dialog.returnValue==='accept');},{once:true});
+    signal.addEventListener('abort',abort,{once:true});
+    dialog.showModal();
+  });
+}
+$('#acceptLoad').addEventListener('click',()=>$('#loadConsent').close('accept'));
+$('#researchLicense').addEventListener('change',()=>$('#acceptLoad').disabled=!$('#researchLicense').checked);
+$('#declineLoad').addEventListener('click',()=>$('#loadConsent').close('cancel'));
+$('#cancelResponse').addEventListener('click',()=>{activeAbort?.abort();localModule?.cancelLocal();});
+$('#persistMemory').addEventListener('change',async()=>{
+  if($('#persistMemory').checked){$('#persistMemory').checked=false;$('#storageConsent').showModal();return;}
+  persistent=false;
+  try{await store.disable();$('#storageStatus').textContent='Persistencia desactivada y copia guardada borrada. La conversación actual sigue solo en esta pestaña.';}
+  catch(e){$('#storageStatus').textContent='No se completó el borrado: '+e.message;}
+});
+$('#declineStorage').addEventListener('click',()=>$('#storageConsent').close());
+$('#acceptStorage').addEventListener('click',async()=>{
+  $('#acceptStorage').disabled=true;setBusy(true);$('#thinking').hidden=true;$('#cancelResponse').hidden=true;
+  try{
+    if(!store)store=createMemoryStore();
+    await store.enable(snapshot());persistent=true;$('#persistMemory').checked=true;
+    $('#storageStatus').textContent='Guardado localmente con tu consentimiento. Solo en este navegador.';$('#storageConsent').close();
+  }catch(e){$('#storageStatus').textContent='No se pudo activar la persistencia: '+e.message;$('#storageConsent').close();}
+  finally{$('#acceptStorage').disabled=false;setBusy(false);}
+});
+$('#exportHistory').addEventListener('click',()=>{
+  const url=URL.createObjectURL(new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'}));
+  const link=document.createElement('a');link.href=url;link.download='apolo-conversacion.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+$('#eraseAll').addEventListener('click',()=>$('#eraseConsent').showModal());
+$('#confirmErase').addEventListener('click',async()=>{
+  $('#confirmErase').disabled=true;setBusy(true);$('#thinking').hidden=true;$('#cancelResponse').hidden=true;
+  persistent=false;$('#persistMemory').checked=false;activeAbort?.abort();localModule?.disposeLocal();approvedModel=null;stopVoice();
+  try{
+    if(!store)store=createMemoryStore();await store.disable();
+    if('serviceWorker' in navigator){for(const registration of await navigator.serviceWorker.getRegistrations())if(registration.scope===new URL('./',location.href).href)await registration.unregister();}
+    if('caches' in window){for(const key of await caches.keys())if(key.startsWith('apolo-shell-')||key==='static-v1.2.6'||key.startsWith('webllm/'))await caches.delete(key);}
+    for(const storage of [localStorage,sessionStorage])for(const key of Object.keys(storage))if(key.startsWith('apolo-'))storage.removeItem(key);
+    history=[];memory=emptyMemory();syncMemoryFields();$('#messages').replaceChildren();$('#welcome').hidden=false;$('#texto').value='';$('#renderConsent').checked=false;renderHistory();
+    $('#contextInfo').textContent='Historial y recuerdos borrados.';$('#storageStatus').textContent='Datos locales y cachés borrados. La PWA podrá recrear su caché al volver a abrirla.';
+    notice('Datos locales borrados. No se han borrado tus archivos exportados ni otros dispositivos.');
+  }catch(e){$('#storageStatus').textContent='Borrado incompleto: '+e.message+' Cierra otras pestañas y vuelve a intentar; no se afirma que los datos se hayan eliminado.';}
+  finally{$('#confirmErase').disabled=false;$('#eraseConsent').close();setBusy(false);}
+});
+window.addEventListener('storage',event=>{
+  if(event.key===CONSENT_KEY){persistent=false;$('#persistMemory').checked=false;$('#storageStatus').textContent='La memoria cambió en otra pestaña. Recarga antes de guardar.';
+    if(!event.newValue){activeAbort?.abort();localModule?.disposeLocal();history=[];memory=emptyMemory();syncMemoryFields();$('#messages').replaceChildren();$('#welcome').hidden=false;renderHistory();}
+  }
+});
+window.addEventListener('pagehide',()=>{activeAbort?.abort();localModule?.disposeLocal();});
+async function restore(){
+  setBusy(true);$('#thinking').hidden=true;$('#cancelResponse').hidden=true;
+  try{
+    try{if(sessionStorage.getItem(RUN_KEY)){modelSelect.value='small';describeModel();notice('La operación anterior no terminó. No se reiniciará automáticamente. Prueba 0.5B solo cuando quieras volver a cargarlo.');}}catch{}
+    store=createMemoryStore();const saved=await store.load();
+    if(saved){
+      history=saved.history.map(turn=>turn.status==='pending'?{...turn,status:'cancelled',a:'Operación interrumpida al salir. No se reintentó automáticamente.'}:turn);memory=saved.memory;persistent=true;$('#persistMemory').checked=true;syncMemoryFields();
+      for(const turn of history){addMessage('user',turn.q,{id:turn.id});addMessage('assistant',turn.a,{error:turn.status!=='complete'});}
+      renderHistory();$('#storageStatus').textContent='Conversación restaurada desde este navegador. No se cargó ningún modelo.';
+    }
+  }catch(e){$('#storageStatus').textContent='No se pudo restaurar la memoria local: '+e.message+' Los datos existentes no se sobrescribirán.';}
+  finally{restoring=false;setBusy(false);}
+}
+restore();
 if(import.meta.env.PROD && 'serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'}).catch(()=>notice('No se pudo activar el modo sin conexión.')));
