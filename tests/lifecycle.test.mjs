@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createLocalClient} from '../src/local-engine.js';
 function setup(overrides={}){
   const workers=[];let interrupts=0;
-  const client=createLocalClient({checkGPU:async()=>{},createWorker:()=>{const w={terminated:false,terminate(){this.terminated=true;}};workers.push(w);return w;},createEngine:async()=>({interruptGenerate(){interrupts++;},chat:{completions:{create:()=>new Promise(()=>{})}}}),...overrides});
+  const client=createLocalClient({prepareModel:async()=>{},checkGPU:async()=>{},createWorker:()=>{const w={terminated:false,terminate(){this.terminated=true;}};workers.push(w);return w;},createEngine:async()=>({interruptGenerate(){interrupts++;},chat:{completions:{create:()=>new Promise(()=>{})}}}),...overrides});
   return {client,workers,get interrupts(){return interrupts;}};
 }
 test('cancel during generation settles immediately, terminates worker, and permits retry',async()=>{

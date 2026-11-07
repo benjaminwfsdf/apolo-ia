@@ -1,3 +1,9 @@
+# Actualización: motores local, nube y documentos
+
+WebLLM incorpora verificación de shards por tamaño/SHA-256 y revisiones fijas. Gemini y consultas de texto con citas están implementados en una función de Vercel, **desactivados sin credenciales/configuración**. NotebookLM sigue desconectado tras evaluar sus vías oficiales y no oficiales. No se activaron pagos.
+
+Consulta [configuración segura de Preview](docs/CLOUD-SETUP.md) y [validación más reciente](docs/VALIDATION-CLOUD.md). La nube solo envía contexto/recuerdos con permiso adicional; usa hasta 15 turnos y 12000 bytes frente al contexto local más reducido. Prueba adicional: `node tests/cloud-browser.cjs` (proveedor simulado).
+
 # Apolo IA 2.0
 
 Aplicación existente: interfaz negra y dorada, voz, WebLLM local y PWA. Desarrollo exclusivamente en `feat/apolo-2-webllm`; Preview en el proyecto existente `apolo-ia-2.0`. Sin integración activa con NotebookLM ni nuevas APIs de pago.

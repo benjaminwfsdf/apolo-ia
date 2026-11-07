@@ -1,6 +1,7 @@
 import { MODELS, recommendedModel, checkWebGPU, askRender, buildContext } from './conversation.js';
 import { emptyMemory, updateMemory, recallConfirmed } from './memory.js';
 import { createMemoryStore, CONSENT_KEY, clearModelCaches } from './storage.js';
+import { remoteAnswer } from './remote-engine.js';
 const $ = selector => document.querySelector(selector);
 let history = [], memory=emptyMemory(), busy = false, recognition = null, localModule;
 let persistent=false, store, activeAbort, approvedModel=null, restoring=true;
@@ -21,14 +22,24 @@ function scrollToLatest() { $('#thinking').scrollIntoView({block:'nearest',behav
 function describeModel() {
   const m=MODELS[modelSelect.value];
   $('#modelInfo').textContent=`${m.memory}. ${m.description} La descarga inicial puede ocupar cientos de MB o más de 1 GB. La memoria es una estimación, no una garantía de compatibilidad.`;
-  $('#modelBadge').lastChild.textContent=$('#motor').value==='local'?`Apolo · ${m.label}`:'Apolo · Render';
+  const mode=$('#motor').value;
+  $('#modelBadge').lastChild.textContent=mode==='local'?`Apolo · ${m.label}`:mode==='render'?'Apolo · Render':mode==='documents'?'Apolo · Documentos / Google':'Apolo · Nube / Google';
+  $('#cloudSettings').hidden=!['cloud','documents'].includes(mode);$('#documentSettings').hidden=mode!=='documents';
+  $('#localSettings').hidden=mode!=='local';$('#renderSettings').hidden=mode!=='render';
 }
 describeModel();
 modelSelect.addEventListener('change',()=>{localModule?.disposeLocal();approvedModel=null;describeModel();});
 $('#motor').addEventListener('change',()=>{localModule?.disposeLocal();approvedModel=null;describeModel();});
+$('#motor').addEventListener('change',async()=>{
+  if(!['cloud','documents'].includes($('#motor').value))return;
+  try{const response=await fetch('/api/chat',{cache:'no-store'});const data=await response.json();$('#cloudStatus').textContent=data.enabled?'Gemini configurado. Límites Apolo por instancia: 3/minuto y 30/día; la cuota real de Google se consulta en AI Studio.':'Nube desactivada: el administrador debe configurar las credenciales privadas de Preview y confirmar el nivel gratuito.';}
+  catch{$('#cloudStatus').textContent='No se pudo comprobar la conexión de nube.';}
+});
+$('#clearDocument').addEventListener('click',()=>$('#documentText').value='');
 checkWebGPU().then(()=>$('#gpuStatus').textContent='WebGPU disponible. La capacidad real depende de la memoria libre de tu GPU.').catch(e=>{ $('#gpuStatus').textContent=e.message; notice(e.message); });
 function setBusy(value) {
   busy=value;
+  for(const id of ['cloudConsent','cloudContext','cloudAccess','documentText','clearDocument'])$('#'+id).disabled=value;
   for(const selector of ['#btnPreguntar','#btnHablar','#motor','#model','#limpiar','#rememberedName','#memoryNotes','#forgetName','#releaseModel','#clearModels','#persistMemory','#eraseAll','#renderConsent']) $(selector).disabled=value;
   $('#thinking').hidden=!value;
   $('#cancelResponse').hidden=!value;
@@ -48,13 +59,13 @@ function speak(text, manual=false) {
   $('#btnDetener').hidden=false;
   window.speechSynthesis.speak(utterance);
 }
-function addMessage(role, text, {error=false,id}={}) {
+function addMessage(role, text, {error=false,id,source}={}) {
   $('#welcome').hidden=true;
   const article=document.createElement('article'); article.className=`message ${role}${error?' error':''}`;
   if(id)article.id=id;
   if(role==='assistant') { const avatar=document.createElement('span');avatar.className='avatar';avatar.textContent='Λ';avatar.setAttribute('aria-hidden','true');article.append(avatar); }
   const body=document.createElement('div');body.className='message-body';
-  const label=document.createElement('p');label.className='message-label';label.textContent=role==='user'?'Tú':error?'No se pudo responder':'Apolo';
+  const label=document.createElement('p');label.className='message-label';label.textContent=role==='user'?'Tú':error?'No se pudo responder':source==='cloud'?'Apolo · Gemini externo':source==='documents'?'Apolo · Documentos / Gemini externo':source==='render'?'Apolo · Render externo':source==='memory'?'Apolo · Memoria confirmada':'Apolo';
   const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=text;
   body.append(label,bubble);
   if(role==='assistant'&&!error) {
@@ -76,11 +87,14 @@ function renderHistory() {
 }
 async function preguntar(texto) {
   texto=texto.trim();if(!texto||busy||restoring)return;
+  const mode=$('#motor').value,remote=['cloud','documents'].includes(mode);
+  if(remote&&!$('#cloudConsent').checked){notice('Autoriza el envío a Google en Configuración antes de preguntar.');return;}
+  if(mode==='documents'&&$('#documentText').value.trim().length<20){notice('Añade un texto público en Configuración → Documentos.');return;}
   if($('#motor').value==='render'&&!$('#renderConsent').checked){notice('Antes de enviar una pregunta a Render, autoriza el envío en Configuración.');return;}
   let context;
   const nextMemory=updateMemory(memory,texto);
   const recalled=$('#motor').value==='local'?recallConfirmed(texto,nextMemory):null;
-  try { context=buildContext(history,texto,nextMemory); }catch(e){notice(e.message);return;}
+  try { context=buildContext(remote&&!$('#cloudContext').checked?[]:history,texto,remote&&!$('#cloudContext').checked?emptyMemory():nextMemory,remote?'cloud':'local'); }catch(e){notice(e.message);return;}
   stopVoice();notice();setBusy(true);
   activeAbort=new AbortController();
   if($('#motor').value==='local' && recalled===null && approvedModel!==modelSelect.value){
@@ -98,6 +112,13 @@ async function preguntar(texto) {
   try {
     let answer;
     if(recalled!==null){answer=recalled;$('#contextInfo').textContent='Consulta directa resuelta desde tus datos confirmados, sin inferencia ni envío externo.';}
+    else if(remote){
+      $('#thinkingText').textContent=mode==='documents'?'Consultando texto con Google':'Consultando Gemini';
+      const result=await remoteAnswer({messages:context.messages,mode,document:mode==='documents'?$('#documentText').value:'',consent:$('#cloudConsent').checked,accessCode:$('#cloudAccess').value,signal:activeAbort.signal});
+      answer=result.answer;
+      if(result.sources?.length)answer+='\n\nFuentes · Texto aportado (coincidencia literal; interpretación no verificada):\n'+result.sources.map((s,i)=>`[${i+1}] Caracteres ${s.start+1}–${s.end}: «${s.excerpt}»`).join('\n');
+      $('#contextInfo').textContent=`Google recibió la pregunta${$('#cloudContext').checked?' y el contexto reciente autorizado':''}${mode==='documents'?' y el texto aportado':''}.`;
+    }
     else if($('#motor').value==='render') {
       $('#thinkingText').textContent='Consultando Render';
       answer=await askRender(texto,fetch,activeAbort.signal);
@@ -112,13 +133,13 @@ async function preguntar(texto) {
         const fraction=Math.max(0,Math.min(1,Number(report.progress)||0));
         $('#modelProgress').value=fraction;
         $('#downloadPercent').textContent=`${Math.round(fraction*100)}%`;
-        const phase=/Loading model from cache|Loading GPU|compil|Finish loading/i.test(report.text||'')?'Inicializando':/fetch|download/i.test(report.text||'')?'Descargando / verificando caché':'Preparando';
+        const phase=/Verificando archivos|Archivos verificados/i.test(report.text||'')?'Verificando integridad':/Loading model from cache|Loading GPU|compil|Finish loading/i.test(report.text||'')?'Inicializando':/fetch|download/i.test(report.text||'')?'Descargando / verificando caché':'Preparando';
         markRun(phase+':'+modelSelect.value);
         $('#downloadText').textContent=phase+' · '+MODELS[modelSelect.value].label;
         $('#downloadText').title=report.text||'';
       },()=>{markRun('generating:'+modelSelect.value);$('#download').hidden=true;$('#thinkingText').textContent='Apolo está pensando';},activeAbort.signal);
     }
-    addMessage('assistant',answer);
+    addMessage('assistant',answer,{source:turn.source});
     turn.a=answer;turn.status='complete';await persist();
     renderHistory();speak(answer);
     if(context.omittedTurns>0 || context.shortened)notice('La conversación completa está en el historial. El modelo utiliza un contexto reciente limitado y tu nombre declarado.');
@@ -127,7 +148,7 @@ async function preguntar(texto) {
     if(/quota/i.test(e.message||''))e=new Error('No hay cuota suficiente para guardar el modelo. En Configuración puedes borrar solo los modelos descargados, conservando conversaciones y recuerdos.');
     turn.status=e.name==='AbortError'?'cancelled':'error';turn.a=e.name==='AbortError'?'Operación cancelada.':e.message;
     addMessage('assistant',turn.a,{error:true});await persist();renderHistory();
-    notice(e.name==='AbortError'?'Cancelado. No se reintentará automáticamente.':$('#motor').value==='local'?'Puedes reintentar manualmente o elegir el modelo ligero en Configuración.':'No se pudo consultar Render. La IA local sigue disponible.');
+    notice(e.name==='AbortError'?'Cancelado. No se reintentará automáticamente.':$('#motor').value==='local'?'Puedes reintentar manualmente o elegir el modelo ligero en Configuración.':'Falló el servicio externo. No se cambió de motor ni se reintentó.');
     $('#texto').value=texto;
   }finally{
     markRun(null);activeAbort=null;$('#download').hidden=true;setBusy(false);
@@ -214,7 +235,7 @@ $('#confirmErase').addEventListener('click',async()=>{
     if('serviceWorker' in navigator){for(const registration of await navigator.serviceWorker.getRegistrations())if(registration.scope===new URL('./',location.href).href)await registration.unregister();}
     if('caches' in window){for(const key of await caches.keys())if(key.startsWith('apolo-shell-')||key==='static-v1.2.6'||key.startsWith('webllm/'))await caches.delete(key);}
     for(const storage of [localStorage,sessionStorage])for(const key of Object.keys(storage))if(key.startsWith('apolo-'))storage.removeItem(key);
-    history=[];memory=emptyMemory();syncMemoryFields();$('#messages').replaceChildren();$('#welcome').hidden=false;$('#texto').value='';$('#renderConsent').checked=false;renderHistory();
+    history=[];memory=emptyMemory();syncMemoryFields();$('#messages').replaceChildren();$('#welcome').hidden=false;$('#texto').value='';$('#renderConsent').checked=false;$('#cloudConsent').checked=false;$('#cloudContext').checked=false;$('#cloudAccess').value='';$('#documentText').value='';renderHistory();
     $('#contextInfo').textContent='Historial y recuerdos borrados.';$('#storageStatus').textContent='Datos locales y cachés borrados. La PWA podrá recrear su caché al volver a abrirla.';
     notice('Datos locales borrados. No se han borrado tus archivos exportados ni otros dispositivos.');
   }catch(e){$('#storageStatus').textContent='Borrado incompleto: '+e.message+' Cierra otras pestañas y vuelve a intentar; no se afirma que los datos se hayan eliminado.';}
@@ -233,7 +254,7 @@ async function restore(){
     store=createMemoryStore();const saved=await store.load();
     if(saved){
       history=saved.history.map(turn=>turn.status==='pending'?{...turn,status:'cancelled',a:'Operación interrumpida al salir. No se reintentó automáticamente.'}:turn);memory=saved.memory;persistent=true;$('#persistMemory').checked=true;syncMemoryFields();
-      for(const turn of history){addMessage('user',turn.q,{id:turn.id});addMessage('assistant',turn.a,{error:turn.status!=='complete'});}
+      for(const turn of history){addMessage('user',turn.q,{id:turn.id});addMessage('assistant',turn.a,{error:turn.status!=='complete',source:turn.source});}
       renderHistory();$('#storageStatus').textContent='Conversación restaurada desde este navegador. No se cargó ningún modelo.';
     }
   }catch(e){$('#storageStatus').textContent='No se pudo restaurar la memoria local: '+e.message+' Los datos existentes no se sobrescribirán.';}

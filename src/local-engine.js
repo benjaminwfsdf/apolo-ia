@@ -1,6 +1,8 @@
 import { CreateWebWorkerMLCEngine, prebuiltAppConfig, deleteModelAllInfoInCache } from '@mlc-ai/web-llm';
 import { MODELS, checkWebGPU } from './conversation.js';
-export function createLocalClient({createEngine=CreateWebWorkerMLCEngine,createWorker=()=>new Worker(new URL('./llm-worker.js',import.meta.url),{type:'module'}),checkGPU=checkWebGPU,loadTimeout=600000,generateTimeout=180000}={}) {
+import integrity from './model-integrity.json' with {type:'json'};
+import {prepareModelFiles,modelError} from './model-files.js';
+export function createLocalClient({createEngine=CreateWebWorkerMLCEngine,createWorker=()=>new Worker(new URL('./llm-worker.js',import.meta.url),{type:'module'}),checkGPU=checkWebGPU,prepareModel=prepareModelFiles,loadTimeout=600000,generateTimeout=180000}={}) {
   let engine,worker,loadedModel,busy=false,cancelActive;
   function release(){worker?.terminate();worker=undefined;engine=undefined;loadedModel=undefined;}
   function cancel(){cancelActive?.();}
@@ -14,18 +16,20 @@ export function createLocalClient({createEngine=CreateWebWorkerMLCEngine,createW
       if(signal?.aborted)throw new DOMException('Respuesta cancelada.','AbortError');
       busy=true;
       let rejectOperation,stopped=false,ownedWorker;
+      const preparation=new AbortController();
       const interrupted=new Promise((_,reject)=>rejectOperation=reject);
-      cancelActive=()=>{stopped=true;try{engine?.interruptGenerate?.();}catch{}release();rejectOperation(new DOMException('Respuesta cancelada.','AbortError'));};
+      cancelActive=()=>{stopped=true;preparation.abort();try{engine?.interruptGenerate?.();}catch{}release();rejectOperation(new DOMException('Respuesta cancelada.','AbortError'));};
       const abort=()=>cancelActive?.();signal?.addEventListener('abort',abort,{once:true});
       const workerError=()=>rejectOperation(new Error('El motor local dejó de responder. Reintenta manualmente con el modelo ligero.'));
       try {
         if(loadedModel!==model.id){
           release();
           await Promise.race([checkGPU(),interrupted]);
+          await deadline(Promise.race([prepareModel(integrity[modelKey],{signal:preparation.signal,report:onProgress}),interrupted]),loadTimeout);
           if(stopped)throw new DOMException('Carga cancelada.','AbortError');
           worker=createWorker();ownedWorker=worker;
           worker.addEventListener?.('error',workerError);worker.addEventListener?.('messageerror',workerError);
-          engine=await deadline(Promise.race([createEngine(worker,model.id,{initProgressCallback:report=>{if(!stopped)onProgress(report);},appConfig:{...prebuiltAppConfig,cacheBackend:'cache'}}),interrupted]),loadTimeout);
+          engine=await deadline(Promise.race([createEngine(worker,model.id,{initProgressCallback:report=>{if(!stopped)onProgress(report);},appConfig:{...prebuiltAppConfig,cacheBackend:'cache',model_list:prebuiltAppConfig.model_list.map(m=>m.model_id===model.id?{...m,model:integrity[modelKey].base}:m)}}),interrupted]),loadTimeout);
           loadedModel=model.id;
         }else{
           ownedWorker=worker;worker.addEventListener?.('error',workerError);worker.addEventListener?.('messageerror',workerError);
@@ -36,7 +40,7 @@ export function createLocalClient({createEngine=CreateWebWorkerMLCEngine,createW
         const answer=result.choices[0]?.message?.content?.trim();
         if(!answer)throw new Error('El modelo no produjo una respuesta. Reintenta.');
         return answer;
-      }catch(error){release();throw error && typeof error.message==='string' ? error : new Error(String(error));}
+      }catch(error){preparation.abort();release();throw modelError(error);}
       finally{signal?.removeEventListener('abort',abort);ownedWorker?.removeEventListener?.('error',workerError);ownedWorker?.removeEventListener?.('messageerror',workerError);cancelActive=undefined;busy=false;}
     }
   };

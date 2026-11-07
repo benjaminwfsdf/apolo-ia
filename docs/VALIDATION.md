@@ -1,3 +1,5 @@
+Actualización más reciente: [integridad de modelos, nube y documentos](VALIDATION-CLOUD.md). Configuración: [CLOUD-SETUP.md](CLOUD-SETUP.md). El contenido siguiente conserva la evaluación anterior a esta actualización.
+
 # Validación de la actualización integral
 
 Fecha: 2026-11-06. Base: a8f40098b2b026731ed07ba525eaa52ea59227fa. Rama: feat/apolo-2-webllm. Proyecto Vercel: apolo-ia-2.0. No se cambia main, producción ni dominios.

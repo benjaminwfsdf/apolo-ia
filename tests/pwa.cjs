@@ -15,6 +15,8 @@ const keys=await page.evaluate(()=>caches.keys());assert.ok(keys.includes('webll
 const manifestURL=new URL(await page.locator('link[rel=manifest]').getAttribute('href'),page.url());
 const manifest=await (await page.request.get(manifestURL.href)).json();for(const icon of manifest.icons)assert.equal((await page.request.get(new URL(icon.src,manifestURL).href)).status(),200);
 await page.reload();await context.setOffline(true);await page.reload();assert.equal(await page.title(),'Apolo — Tu espacio para pensar');await page.waitForFunction(()=>document.querySelector('#modelInfo').textContent.length>0);await page.locator('#openSettings').click();await page.locator('#settings').waitFor({state:'visible'});
-console.log('PASS production PWA: offline shell, settings, manifest icons, legacy cleanup, WebLLM cache preservation');
+assert.equal(await page.evaluate(async()=>{try{await fetch('/api/chat');return 'unexpected response';}catch{return 'offline';}}),'offline');
+const cachedRequests=await page.evaluate(async()=>{const urls=[];for(const key of await caches.keys())for(const request of await (await caches.open(key)).keys())urls.push(request.url);return urls;});assert.ok(!cachedRequests.some(url=>url.includes('/api/')));
+console.log('PASS production PWA: offline shell, settings, manifest icons, legacy cleanup, WebLLM cache preservation, API never cached');
 }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

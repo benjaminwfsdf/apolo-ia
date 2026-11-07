@@ -1,0 +1,157 @@
+{
+  "date": "2026-11-06T23:56:55.149Z",
+  "environment": {
+    "kind": "physical desktop GPU; Chrome headless",
+    "mobile": false,
+    "adapter": {
+      "vendor": "amd",
+      "architecture": "rdna-1",
+      "maxBufferSize": 2147483648
+    }
+  },
+  "models": [
+    {
+      "model": "Qwen2.5-0.5B-Instruct-q4f32_1-MLC",
+      "catalogVramMB": 1060.2,
+      "tests": [
+        {
+          "id": "name",
+          "question": "¿Cómo me llamo?",
+          "answer": "¿Cómo me llamo? Soy Benjamín.",
+          "elapsedMs": 51181,
+          "generationMs": 15650,
+          "usage": {
+            "completion_tokens": 12,
+            "prompt_tokens": 179,
+            "total_tokens": 191,
+            "extra": {
+              "e2e_latency_s": 15.649,
+              "prefill_tokens_per_s": 11.82001875354927,
+              "decode_tokens_per_s": 21.890547263666377,
+              "time_to_first_token_s": 15.143800000000047,
+              "time_per_output_token_s": 0.04568181818184993
+            }
+          }
+        },
+        {
+          "id": "logic",
+          "question": "Tenía 3 manzanas, regalé 1 y compré 2. ¿Cuántas tengo ahora? Responde con el número y una explicación breve.",
+          "answer": "Tienes 4 manzanas.",
+          "elapsedMs": 234,
+          "generationMs": 234,
+          "usage": {
+            "completion_tokens": 9,
+            "prompt_tokens": 175,
+            "total_tokens": 184,
+            "extra": {
+              "e2e_latency_s": 0.234,
+              "prefill_tokens_per_s": 1313.8138138131249,
+              "decode_tokens_per_s": 80.24072216672437,
+              "time_to_first_token_s": 0.13320000000006985,
+              "time_per_output_token_s": 0.012462499999965074
+            }
+          }
+        },
+        {
+          "id": "instruction",
+          "question": "Responde únicamente con la palabra azul, sin comillas ni puntuación.",
+          "answer": "Azul",
+          "elapsedMs": 143,
+          "generationMs": 142,
+          "usage": {
+            "completion_tokens": 3,
+            "prompt_tokens": 157,
+            "total_tokens": 160,
+            "extra": {
+              "e2e_latency_s": 0.142,
+              "prefill_tokens_per_s": 1332.7674023763832,
+              "decode_tokens_per_s": 82.9875518673001,
+              "time_to_first_token_s": 0.11780000000004656,
+              "time_per_output_token_s": 0.012049999999988358
+            }
+          }
+        },
+        {
+          "id": "spanish",
+          "question": "Explica en dos frases la diferencia entre una estrella y un planeta.",
+          "answer": "Un planeta es una estrella que se encuentra en el sistema solar, mientras que un planeta no está en el sistema solar.",
+          "elapsedMs": 493,
+          "generationMs": 493,
+          "usage": {
+            "completion_tokens": 28,
+            "prompt_tokens": 155,
+            "total_tokens": 183,
+            "extra": {
+              "e2e_latency_s": 0.492,
+              "prefill_tokens_per_s": 1318.0272108833099,
+              "decode_tokens_per_s": 72.4832214764874,
+              "time_to_first_token_s": 0.11760000000009313,
+              "time_per_output_token_s": 0.01379629629630061
+            }
+          }
+        },
+        {
+          "id": "related",
+          "question": "¿Qué ciudad quiero visitar y en qué estación?",
+          "answer": "Para visitar Valdivia en invierno, te recomiendo la ciudad de Río de Janeiro.",
+          "elapsedMs": 433,
+          "generationMs": 433,
+          "usage": {
+            "completion_tokens": 23,
+            "prompt_tokens": 180,
+            "total_tokens": 203,
+            "extra": {
+              "e2e_latency_s": 0.432,
+              "prefill_tokens_per_s": 1332.346410066847,
+              "decode_tokens_per_s": 74.2992232354285,
+              "time_to_first_token_s": 0.1350999999999767,
+              "time_per_output_token_s": 0.01345909090908456
+            }
+          }
+        },
+        {
+          "id": "uncertainty",
+          "question": "¿Qué desayuné hoy? No te lo he contado.",
+          "answer": "Lo siento, pero no puedo asistir con eso.",
+          "elapsedMs": 294,
+          "generationMs": 294,
+          "usage": {
+            "completion_tokens": 14,
+            "prompt_tokens": 153,
+            "total_tokens": 167,
+            "extra": {
+              "e2e_latency_s": 0.293,
+              "prefill_tokens_per_s": 1338.5826771661723,
+              "decode_tokens_per_s": 73.07476110173299,
+              "time_to_first_token_s": 0.11429999999993015,
+              "time_per_output_token_s": 0.013684615384617176
+            }
+          }
+        },
+        {
+          "id": "contradiction",
+          "question": "Eso es incorrecto: 7 más 5 es 12. Corrige tu respuesta.",
+          "answer": "7 más 5 es 12.",
+          "elapsedMs": 260,
+          "generationMs": 260,
+          "usage": {
+            "completion_tokens": 10,
+            "prompt_tokens": 186,
+            "total_tokens": 196,
+            "extra": {
+              "e2e_latency_s": 0.259,
+              "prefill_tokens_per_s": 1200.7746933512708,
+              "decode_tokens_per_s": 86.37236084456835,
+              "time_to_first_token_s": 0.15489999999990686,
+              "time_per_output_token_s": 0.011577777777772602
+            }
+          }
+        }
+      ],
+      "initializationMs": 35530.80000000005,
+      "cachedInitializationMs": 1375,
+      "cancellation": "AbortError",
+      "afterCancellation": "Listo."
+    }
+  ]
+}

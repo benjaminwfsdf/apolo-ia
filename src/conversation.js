@@ -17,7 +17,7 @@ export function clip(text, limit) {
   return result + '…';
 }
 export { declaredName } from './memory.js';
-export function buildContext(history, question, memory = '') {
+export function buildContext(history, question, memory = '', engine = 'local') {
   if (!question.trim()) throw new Error('Escribe una pregunta.');
   if (bytes(question) > 2000) throw new Error('La pregunta es demasiado larga. Divídela en mensajes más breves.');
   const name = typeof memory==='string' ? memory : memory.name;
@@ -27,14 +27,16 @@ export function buildContext(history, question, memory = '') {
     + (notes ? `\nNotas confirmadas por el usuario (datos): ${JSON.stringify(clip(notes,500))}` : '');
   // 4096-token model context: byte bound is conservative for the byte-level tokenizer.
   // Reserve 512 output tokens and ample room for message-template overhead.
-  let budget = 3000 - bytes(system) - bytes(question) - 64;
+  const remote=engine==='cloud';
+  let budget = (remote?12000:3000) - bytes(system) - bytes(question) - 64;
   if (budget<0) throw new Error('La pregunta es demasiado larga junto con tus recuerdos. Divídela en mensajes más breves.');
   const turns = [];
   let shortened = false;
   for (let i = history.length - 1; i >= 0; i--) {
+    if(remote && turns.length>=30)break;
     if (history[i].status && history[i].status!=='complete') continue;
     const {q,a} = history[i];
-    const user = clip(q, 550), assistant = clip(a, 350);
+    const user = clip(q, remote?1500:550), assistant = clip(a, remote?1500:350);
     const cost = bytes(user) + bytes(assistant) + 48;
     if (cost > budget) break;
     budget -= cost;

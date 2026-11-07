@@ -14,6 +14,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
   const url = new URL(req.url);
+  if (url.pathname.startsWith('/api/')) return; // Never cache or replace API responses with the offline shell.
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
   const scope = new URL('./', self.location.href);
   if (!ASSETS.some(path => new URL(path, scope).href === url.href) && req.mode !== 'navigate') return;

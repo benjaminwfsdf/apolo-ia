@@ -43,7 +43,7 @@ test('WebGPU checks distinguish insecure, unavailable, and absent adapter',async
 });
 test('the actual engine client forwards context unchanged, reloads models and frees workers',async()=>{
   const requests=[],models=[],workers=[];
-  const client=createLocalClient({checkGPU:async()=>{},createWorker:()=>{const w={terminated:false,terminate(){this.terminated=true;}};workers.push(w);return w;},createEngine:async(w,id)=>{models.push(id);return {chat:{completions:{create:async options=>{requests.push(options);return {choices:[{message:{content:'Te llamas Ana.'}}]};}}}};}});
+  const client=createLocalClient({prepareModel:async()=>{},checkGPU:async()=>{},createWorker:()=>{const w={terminated:false,terminate(){this.terminated=true;}};workers.push(w);return w;},createEngine:async(w,id)=>{models.push(id);return {chat:{completions:{create:async options=>{requests.push(options);return {choices:[{message:{content:'Te llamas Ana.'}}]};}}}};}});
   const messages=buildContext([{q:'Me llamo Ana',a:'Hola Ana'}],'¿Cómo me llamo?','Ana').messages;
   assert.equal(await client.answer(messages,'balanced'),'Te llamas Ana.');
   assert.deepEqual(requests[0].messages,messages);assert.equal(requests[0].temperature,0.2);
@@ -53,7 +53,7 @@ test('the actual engine client forwards context unchanged, reloads models and fr
 });
 test('initialization failure is retryable; simultaneous generation is rejected',async()=>{
   let fail=true,release;
-  const client=createLocalClient({checkGPU:async()=>{},createWorker:()=>({terminate(){}}),createEngine:async()=>{if(fail){fail=false;throw new Error('GPU memory');}return {chat:{completions:{create:()=>new Promise(resolve=>release=()=>resolve({choices:[{message:{content:'ok'}}]}))}}};}});
+  const client=createLocalClient({prepareModel:async()=>{},checkGPU:async()=>{},createWorker:()=>({terminate(){}}),createEngine:async()=>{if(fail){fail=false;throw new Error('GPU memory');}return {chat:{completions:{create:()=>new Promise(resolve=>release=()=>resolve({choices:[{message:{content:'ok'}}]}))}}};}});
   await assert.rejects(client.answer([],'small'),/GPU memory/);
   const pending=client.answer([],'small');
   await new Promise(r=>setTimeout(r,0));
